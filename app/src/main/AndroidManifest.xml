@@ -3,7 +3,6 @@
      com.gamemaker.game
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="one.alynx.flipclock"
     android:versionCode="1"
     android:versionName="1.0"
     android:installLocation="auto">
@@ -54,6 +53,14 @@
     <!-- if you want to capture audio, uncomment this. -->
     <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
 
+    <!-- Auto start after boot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Create a Java class extending SDLActivity and place it in a
          directory under app/src/main/java matching the package, e.g. app/src/main/java/com/gamemaker/game/MyGame.java
  
@@ -97,6 +104,32 @@
             </intent-filter>
             -->
         </activity>
+
+        <activity
+            android:name="SettingsActivity"
+            android:label="@string/settings_activity_label"
+            android:theme="@style/AppTheme"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name="BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name="BootAutoStartService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

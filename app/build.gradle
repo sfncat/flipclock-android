@@ -13,13 +13,13 @@ android {
         if (buildAsApplication) {
             applicationId "one.alynx.flipclock"
         }
-        minSdkVersion 16
+        minSdkVersion 19
         targetSdkVersion 33
         versionCode 9
         versionName "1.1.1"
         externalNativeBuild {
             ndkBuild {
-                arguments "APP_PLATFORM=android-16"
+                arguments "APP_PLATFORM=android-19"
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
             }
             // cmake {
@@ -58,7 +58,8 @@ android {
     lintOptions {
         abortOnError false
     }
-    
+    namespace 'one.alynx.flipclock'
+
     if (buildAsLibrary) {
         libraryVariants.all { variant ->
             variant.outputs.each { output ->
