@@ -1,0 +1,58 @@
+此程序可以不作为屏幕保护程序运行，你可以手动双击 flipclock.scr 运行程序。此时按 Esc 或者 q 键可以退出程序，按 t 键可以切换 12/24 小时制，按 f 可以切换窗口模式和全屏模式。当有多个窗口和屏幕时，可以关闭不需要的窗口并拖动其他窗口，每个窗口在切换回全屏时会以自己的中心点所在的屏幕作为全屏所用的屏幕。
+
+如果直接双击程序后报错找不到 VCRUNTIME140 等 dll 文件，说明你的系统没有安装微软的 C 语言运行库，64 位系统下载地址是 https://aka.ms/vs/16/release/vc_redist.x64.exe，32 位系统下载地址是 https://aka.ms/vs/16/release/vc_redist.x86.exe，请按需下载并安装。
+
+在程序运行时添加或移除显示器，程序并不会自动增加或删除窗口，此时请关闭程序重新打开。
+
+当作屏保使用时，右键点击 flipclock.scr，选择“安装”。接下来就可以设置屏保为 flipclock 了。
+
+如果想配置程序，可以右键点击这个目录下面的 flipclock.conf 选择用记事本打开，然后按照下面的说明进行修改。
+
+如果想修改为 12 小时制，找到 #ampm = true 那一行删掉行首的 # 并保存即可。
+
+如果想显示秒，找到 #show_second = true 那一行删除行首的 # 并保存即可。
+
+如果想替换字体，可以直接将其它字体重命名为 flipclock.ttf 并放置在这个目录下面。也可以修改 flipclock.conf 里面的 font 选项，但不推荐这种方式。
+
+如果想修改字符大小，找到 #text_scale = 0.8 那一行删掉行首的 # 并修改数字保存，这个数字会乘到默认的字号上。
+
+如果想使用自定义颜色，请参考此文件末尾的中文说明版配置文件分别修改各项。
+
+不建议单独提取 flipclock.scr 放到别处，程序运行需要依赖这个目录下的其他文件。
+
+如果下载了更新版本的程序并想要保持配置，请将 flipclock.conf 文件复制粘贴到新版本程序的目录，或者手动将之前的配置修改到新的配置文件里面。
+
+如果你想深入了解 flipclock.conf 里面的选项，但英文阅读对你来说存在障碍，可以复制下一行到此文件结束的所有内容并粘贴到 flipclock.conf 内替换里面的内容，这是包含中文说明的配置文件：
+# Uncomment `ampm = true` to use 12-hour format.
+# 删除 `ampm = true` 前面的 `#` 以使用 12 小时制。
+#ampm = true
+# Uncomment `full = false` to disable fullscreen.
+# You should not change this for a screensaver.
+# 删除 `full = false` 前面的 `#` 以取消全屏。
+# 屏幕保护程序不应当修改这个设置。
+#full = false
+# Uncomment `show_second = true` to show second.
+# 删除 `show_second = true` 前面的 `#` 以显示秒。
+#show_second = true
+# Uncomment `font = ` and add path to use custom font.
+# 删除 `font = ` 前面的 `#` 并添加路径以使用自定义字体。
+#font =
+# Uncomment `text_scale = 0.8` to modify digit scale.
+# 删除 `text_scale = 0.8` 前面的 `#` 并修改数字以改变文本缩放大小。
+# This scales the text again based on card scale.
+# 这会在卡片缩放大小基础上再次缩放文本。
+#text_scale = 0.8
+# Uncomment `card_scale = 0.8` to modify card scale.
+# 删除 `card_scale = 0.8` 前面的 `#` 并修改数字以改变卡片缩放大小。
+# This also scales the text.
+# 这也会缩放文本。
+#card_scale = 0.8
+# Uncomment `text_color = ` to modify the color of the text.
+# 删除 `text_color` 前面的 `#` 并修改颜色码以修改文本颜色。
+#text_color = #000000ff
+# Uncomment `box_color = ` to modify the color of the rounded box behind the text.
+# 删除 `box_color` 前面的 `#` 并修改颜色码以修改文本背后的圆角矩形的颜色。
+#box_color = #fe9a00ff
+# Uncomment `background_color = ` to modify the color of the background.
+# 删除 `background_color` 前面的 `#` 并修改颜色码以修改背景颜色。
+#background_color = #000000ff

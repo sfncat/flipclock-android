@@ -1,3 +1,0 @@
-[submodule "app/jni/flipclock"]
-	path = app/jni/flipclock
-	url = https://github.com/AlynxZhou/flipclock.git
