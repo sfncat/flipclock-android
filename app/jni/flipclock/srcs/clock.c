@@ -8,9 +8,19 @@
 #include "flipclock.h"
 #include "clock.h"
 #include "card.h"
+#include "info_bar.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
+/* 信息栏占用窗口短边的比例，见 docs/date-info-design.md。 */
+#define INFO_RATIO 0.10
+/* 竖屏时左侧信息栏占窗口宽度的比例（需要容纳多行文字）。 */
+#define INFO_RATIO_PORTRAIT 0.22
+
+static bool _flipclock_clock_has_info_bar(const struct flipclock *app)
+{
+	return app->show_date || app->show_weekday || app->show_lunar;
+}
 
 static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 {
@@ -29,9 +39,15 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 	 * will enlarge the spaces of begining and end, so only care about
 	 * spaces between cards when calculating position.
 	 */
+	bool has_info_bar = _flipclock_clock_has_info_bar(app);
 	if (clock->w >= clock->h) {
 		int space_size = clock->w / (cards_length * 8 + spaces_length);
-		int min_height = clock->h * 0.8;
+		/* 信息栏高度 + 顶部间距 + 底部间距。 */
+		int info_h = has_info_bar
+				     ? (int)(clock->h * INFO_RATIO) +
+					       2 * space_size
+				     : 0;
+		int min_height = (clock->h - info_h) * 0.8;
 		int min_width =
 			clock->w * 8 / (cards_length * 8 + spaces_length);
 		int card_size = min_height < min_width ? min_height : min_width;
@@ -40,7 +56,8 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 		hour_rect.x = (clock->w - card_size * cards_length -
 			       space_size * (spaces_length - 2)) /
 			      2;
-		hour_rect.y = (clock->h - card_size) / 2;
+		hour_rect.y =
+			info_h + ((clock->h - info_h) - card_size) / 2;
 		hour_rect.w = card_size;
 		hour_rect.h = card_size;
 		flipclock_card_set_rect(clock->hour, hour_rect);
@@ -59,15 +76,31 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			second_rect.h = card_size;
 			flipclock_card_set_rect(clock->second, second_rect);
 		}
+
+		if (clock->info_bar != NULL) {
+			SDL_Rect info_rect;
+			info_rect.x = 0;
+			info_rect.y = space_size;
+			info_rect.w = clock->w;
+			info_rect.h = (int)(clock->h * INFO_RATIO);
+			flipclock_info_bar_set_rect(clock->info_bar, info_rect,
+						     true);
+		}
 	} else {
 		int space_size = clock->h / (cards_length * 8 + spaces_length);
-		int min_width = clock->w * 0.8;
+		/* 信息栏宽度 + 左间距 + 右间距。 */
+		int info_w = has_info_bar
+				     ? (int)(clock->w * INFO_RATIO_PORTRAIT) +
+					       2 * space_size
+				     : 0;
+		int min_width = (clock->w - info_w) * 0.8;
 		int min_height =
 			clock->h * 8 / (cards_length * 8 + spaces_length);
 		int card_size = min_height < min_width ? min_height : min_width;
 		card_size *= app->card_scale;
 
-		hour_rect.x = (clock->w - card_size) / 2;
+		hour_rect.x =
+			info_w + ((clock->w - info_w) - card_size) / 2;
 		hour_rect.y = (clock->h - card_size * cards_length -
 			       space_size * (spaces_length - 2)) /
 			      2;
@@ -89,6 +122,16 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			second_rect.h = card_size;
 			flipclock_card_set_rect(clock->second, second_rect);
 		}
+
+		if (clock->info_bar != NULL) {
+			SDL_Rect info_rect;
+			info_rect.x = space_size;
+			info_rect.y = 0;
+			info_rect.w = (int)(clock->w * INFO_RATIO_PORTRAIT);
+			info_rect.h = clock->h;
+			flipclock_info_bar_set_rect(clock->info_bar, info_rect,
+						     false);
+		}
 	}
 }
 
@@ -103,6 +146,10 @@ static void _flipclock_clock_create_cards(struct flipclock_clock *clock)
 	clock->second = NULL;
 	if (app->show_second)
 		clock->second = flipclock_card_create(app, clock->renderer);
+	clock->info_bar = NULL;
+	if (_flipclock_clock_has_info_bar(app))
+		clock->info_bar =
+			flipclock_info_bar_create(app, clock->renderer);
 	_flipclock_clock_update_layout(clock);
 }
 
@@ -389,6 +436,11 @@ void flipclock_clock_animate(struct flipclock_clock *clock)
 			       app->background_color.a);
 	SDL_RenderClear(clock->renderer);
 
+	if (clock->info_bar != NULL) {
+		flipclock_info_bar_refresh(clock->info_bar, &app->now, false);
+		flipclock_info_bar_draw(clock->info_bar);
+	}
+
 	flipclock_card_animate(clock->hour);
 	flipclock_card_animate(clock->minute);
 	if (app->show_second)
@@ -405,6 +457,8 @@ void flipclock_clock_destroy(struct flipclock_clock *clock)
 	flipclock_card_destory(clock->minute);
 	if (clock->second != NULL)
 		flipclock_card_destory(clock->second);
+	if (clock->info_bar != NULL)
+		flipclock_info_bar_destroy(clock->info_bar);
 	SDL_DestroyRenderer(clock->renderer);
 	SDL_DestroyWindow(clock->window);
 	free(clock);

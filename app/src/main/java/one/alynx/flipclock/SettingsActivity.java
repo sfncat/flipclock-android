@@ -26,10 +26,16 @@ import android.widget.TextView;
 public class SettingsActivity extends Activity {
     private static final String PREFS_NAME = "flipclock_settings";
     private static final String KEY_AUTO_START = "auto_start_enabled";
+    private static final String KEY_SHOW_DATE = "show_date";
+    private static final String KEY_SHOW_WEEKDAY = "show_weekday";
+    private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final int REQUEST_NOTIFICATION_PERMISSION = 100;
     private static final int REQUEST_BATTERY_OPTIMIZATION = 101;
 
     private Switch autoStartSwitch;
+    private Switch showDateSwitch;
+    private Switch showWeekdaySwitch;
+    private Switch showLunarSwitch;
     private Button overlayButton;
     private TextView descriptionText;
     private SharedPreferences prefs;
@@ -45,6 +51,9 @@ public class SettingsActivity extends Activity {
         autoStartSwitch = findViewById(R.id.auto_start_switch);
         overlayButton = findViewById(R.id.overlay_permission_button);
         Button batteryButton = findViewById(R.id.battery_optimization_button);
+        showDateSwitch = findViewById(R.id.show_date_switch);
+        showWeekdaySwitch = findViewById(R.id.show_weekday_switch);
+        showLunarSwitch = findViewById(R.id.show_lunar_switch);
 
         boolean enabled = prefs.getBoolean(KEY_AUTO_START, false);
         autoStartSwitch.setChecked(enabled);
@@ -60,6 +69,16 @@ public class SettingsActivity extends Activity {
                 }
             }
         });
+
+        showDateSwitch.setChecked(prefs.getBoolean(KEY_SHOW_DATE, false));
+        showWeekdaySwitch.setChecked(prefs.getBoolean(KEY_SHOW_WEEKDAY, false));
+        showLunarSwitch.setChecked(prefs.getBoolean(KEY_SHOW_LUNAR, false));
+        showDateSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
+        showWeekdaySwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_WEEKDAY, isChecked).apply());
+        showLunarSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_LUNAR, isChecked).apply());
 
         overlayButton.setOnClickListener(v -> openOverlaySettings());
         batteryButton.setOnClickListener(v -> openBatteryOptimizationSettings());

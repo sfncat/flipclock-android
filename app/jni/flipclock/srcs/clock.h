@@ -5,6 +5,8 @@
 
 #include <SDL.h>
 
+struct flipclock_info_bar;
+
 struct flipclock_clock {
 	struct flipclock *app;
 	SDL_Window *window;
@@ -12,6 +14,8 @@ struct flipclock_clock {
 	struct flipclock_card *hour;
 	struct flipclock_card *minute;
 	struct flipclock_card *second;
+	/* 日期/星期/农历信息栏，所有选项关闭时为 NULL。 */
+	struct flipclock_info_bar *info_bar;
 	int i;
 	int w;
 	int h;

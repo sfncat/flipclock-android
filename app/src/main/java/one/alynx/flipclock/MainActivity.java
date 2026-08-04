@@ -1,11 +1,18 @@
 package one.alynx.flipclock;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.WindowManager;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.libsdl.app.SDLActivity;
 
@@ -14,6 +21,8 @@ import org.libsdl.app.SDLActivity;
  */
 
 public class MainActivity extends SDLActivity {
+    private static final String PREFS_NAME = "flipclock_settings";
+    private static final String TAG = "MainActivity";
     private static final int SETTINGS_GESTURE_FINGERS = 4;
     private static final long SETTINGS_GESTURE_DEBOUNCE_MS = 1000;
 
@@ -21,8 +30,36 @@ public class MainActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Must be called before SDLActivity initializes the native layer,
+        // so that the C code can read the latest settings from flipclock.conf.
+        writeNativeConf();
         super.onCreate(savedInstanceState);
         keepScreenOnAfterBoot();
+    }
+
+    /**
+     * 根据 SharedPreferences 生成 native 层使用的 flipclock.conf 并写入应用
+     * 内部存储。C 层通过 SDL_AndroidGetInternalStoragePath() 读取该文件，
+     * 用于控制主界面上日期/星期/农历的显示。
+     */
+    private void writeNativeConf() {
+        try {
+            SharedPreferences prefs =
+                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            StringBuilder sb = new StringBuilder();
+            sb.append("show_date=")
+                    .append(prefs.getBoolean("show_date", false)).append('\n');
+            sb.append("show_weekday=")
+                    .append(prefs.getBoolean("show_weekday", false)).append('\n');
+            sb.append("show_lunar=")
+                    .append(prefs.getBoolean("show_lunar", false)).append('\n');
+            File conf = new File(getFilesDir(), "flipclock.conf");
+            FileOutputStream fos = new FileOutputStream(conf);
+            fos.write(sb.toString().getBytes(StandardCharsets.UTF_8));
+            fos.close();
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to write flipclock.conf", e);
+        }
     }
 
     /**

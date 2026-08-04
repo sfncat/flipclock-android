@@ -74,6 +74,11 @@ struct flipclock *flipclock_create(void)
 	app->full = true;
 	// Default to 24-hour clock with seconds on Android.
 	app->show_second = true;
+	app->show_date = false;
+	app->show_weekday = false;
+	app->show_lunar = false;
+	app->info_scale = 1.0;
+	app->cjk_font_path[0] = '\0';
 	app->font_path[0] = '\0';
 	app->conf_path[0] = '\0';
 	app->text_scale = 1.0;
@@ -88,14 +93,20 @@ struct flipclock *flipclock_create(void)
 #if defined(_WIN32)
 	snprintf(app->font_path, MAX_BUFFER_LENGTH, "%s\\flipclock.ttf",
 		 app->program_dir);
+	snprintf(app->cjk_font_path, MAX_BUFFER_LENGTH,
+		 "%s\\flipclock_cjk.ttf", app->program_dir);
 #elif defined(__ANDROID__)
 	// Directly under `app/src/main/assets` for Android APP.
 	strncpy(app->font_path, "flipclock.ttf", MAX_BUFFER_LENGTH);
+	strncpy(app->cjk_font_path, "flipclock_cjk.ttf", MAX_BUFFER_LENGTH);
 #elif defined(__linux__) && !defined(__ANDROID__)
 	strncpy(app->font_path, PACKAGE_DATADIR "/fonts/flipclock.ttf",
 		MAX_BUFFER_LENGTH);
+	strncpy(app->cjk_font_path, PACKAGE_DATADIR "/fonts/flipclock_cjk.ttf",
+		MAX_BUFFER_LENGTH);
 #endif
 	app->font_path[MAX_BUFFER_LENGTH - 1] = '\0';
+	app->cjk_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
 	if (strlen(app->font_path) == MAX_BUFFER_LENGTH - 1)
 		LOG_ERROR("`font_path` too long, may fail to load.\n");
 	time_t raw_time = time(NULL);
@@ -275,6 +286,37 @@ static FILE *_flipclock_open_conf_linux(char *conf_path)
 		LOG_ERROR("`conf_path` too long, may fail to load.\n");
 	return fopen(conf_path, "r");
 }
+#elif defined(__ANDROID__)
+/**
+ * Android 上由 Java 层在 SDL 启动前把设置写入
+ * `getFilesDir()/flipclock.conf`（即 SDL 的内部存储路径），
+ * 这里直接通过 SDL_AndroidGetInternalStoragePath() 读取。
+ * 同时也兼容 `FLIPCLOCK_CONF_PATH` 环境变量指定的路径。
+ */
+static FILE *_flipclock_open_conf_android(char *conf_path)
+{
+	RETURN_VAL_IF_FAIL(conf_path != NULL, NULL);
+
+	const char *conf_file = getenv("FLIPCLOCK_CONF_PATH");
+	if (conf_file != NULL && strlen(conf_file) != 0) {
+		strncpy(conf_path, conf_file, MAX_BUFFER_LENGTH);
+		conf_path[MAX_BUFFER_LENGTH - 1] = '\0';
+		if (strlen(conf_path) == MAX_BUFFER_LENGTH - 1)
+			LOG_ERROR("`conf_path` too long, may fail to load.\n");
+		return fopen(conf_path, "r");
+	}
+
+	const char *storage = SDL_AndroidGetInternalStoragePath();
+	if (storage == NULL || strlen(storage) == 0) {
+		LOG_DEBUG("No internal storage path, skip conf.\n");
+		return NULL;
+	}
+	snprintf(conf_path, MAX_BUFFER_LENGTH, "%s/flipclock.conf", storage);
+	conf_path[MAX_BUFFER_LENGTH - 1] = '\0';
+	if (strlen(conf_path) == MAX_BUFFER_LENGTH - 1)
+		LOG_ERROR("`conf_path` too long, may fail to load.\n");
+	return fopen(conf_path, "r");
+}
 #endif
 
 static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
@@ -298,6 +340,20 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 	} else if (!strcmp(key, "show_second")) {
 		if (!strcmp(value, "true"))
 			app->show_second = true;
+	} else if (!strcmp(key, "show_date")) {
+		app->show_date = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "show_weekday")) {
+		app->show_weekday = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "show_lunar")) {
+		app->show_lunar = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "info_scale")) {
+		app->info_scale = strtod(value, NULL);
+	} else if (!strcmp(key, "cjk_font")) {
+		strncpy(app->cjk_font_path, value, MAX_BUFFER_LENGTH);
+		app->cjk_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
+		if (strlen(app->cjk_font_path) == MAX_BUFFER_LENGTH - 1)
+			LOG_ERROR("`cjk_font_path` too long, "
+				  "may fail to load.\n");
 	} else if (!strcmp(key, "font")) {
 		strncpy(app->font_path, value, MAX_BUFFER_LENGTH);
 		app->font_path[MAX_BUFFER_LENGTH - 1] = '\0';
@@ -370,13 +426,13 @@ void flipclock_load_conf(struct flipclock *app)
 	conf = _flipclock_open_conf_win32(app->conf_path, app->program_dir);
 #elif defined(__linux__) && !defined(__ANDROID__)
 	conf = _flipclock_open_conf_linux(app->conf_path);
+#elif defined(__ANDROID__)
+	conf = _flipclock_open_conf_android(app->conf_path);
 #endif
 	// Should never happen, but it's fine.
 	if (conf == NULL)
 		return;
-#if !defined(__ANDROID__)
-	LOG_DEBUG("Parsing `%s`.\n", app->conf_path);
-#endif /**
+	LOG_DEBUG("Parsing `%s`.\n", app->conf_path); /**
 	 * Most file systems have max file name length limit.
 	 * So I don't need to alloc memory dynamically.
 	 */

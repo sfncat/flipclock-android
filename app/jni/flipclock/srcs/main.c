@@ -23,9 +23,9 @@ int main(int argc, char *argv[])
 	}
 	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
 	struct flipclock *app = flipclock_create();
-#if !defined(__ANDROID__)
-	// Android don't need conf and arguments.
+	// Android 下由 Java 层写入 flipclock.conf 并通过环境变量传入路径。
 	flipclock_load_conf(app);
+#if !defined(__ANDROID__)
 #	if defined(__DEBUG__)
 	for (int i = 0; i < argc; ++i)
 		LOG_DEBUG("argv[%d]: %s\n", i, argv[i]);

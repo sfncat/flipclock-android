@@ -12,6 +12,7 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
 
 - **翻页时钟显示**：全屏显示当前时间，支持横竖屏切换。
 - **默认 24 小时制 + 秒**：应用启动后默认显示 24 小时制，并带秒数。
+- **日期 / 星期 / 农历显示**：可在设置页单独开启日期、星期、农历，横屏显示在主界面顶部，竖屏显示在主界面左侧，字体小于时间。
 - **开机自动启动**：设备重启后自动启动 FlipClock 主界面，并自动点亮屏幕、保持常亮，无需手动操作。
 - **用户授权管理**：所有敏感权限（自启动、悬浮窗、通知、电池优化等）均需要用户在设置中手动开启并同意。
 - **原生设置页**：可设置开机自启动、悬浮窗权限、电池优化等。
@@ -35,19 +36,18 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
 
 ### 完整编译步骤
 
-1. 克隆仓库并初始化子模块
+1. 克隆仓库
 
-   FlipClock 以 git submodule 形式引入，用于编译 SDL2、SDL2_ttf 及 FlipClock 原生代码：
+   SDL2、SDL2_ttf 及 FlipClock 原生代码已直接提交在仓库内（`app/jni/` 下），无需初始化子模块：
 
    ```bash
    git clone <仓库地址>
    cd flipclock-android
-   git submodule update --init
    ```
 
 2. 检查字体软链接
 
-   子模块初始化后，`app/src/main/assets/flipclock.ttf` 应是指向 `app/jni/flipclock/dists/flipclock.ttf` 的软链接。若链接未生效，手动创建：
+   `app/src/main/assets/flipclock.ttf` 是指向 `app/jni/flipclock/dists/flipclock.ttf` 的软链接，已随仓库一起提交。若链接未生效，手动创建：
 
    ```bash
    ln -s app/jni/flipclock/dists/flipclock.ttf app/src/main/assets/flipclock.ttf
@@ -87,7 +87,8 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
    - **悬浮窗权限**：用于在 Android 10+ 上创建临时可见窗口，从而允许后台启动主界面。
    - **通知权限**（Android 13+）：用于前台服务通知。
    - **电池优化**：建议关闭电池优化，否则系统可能杀死开机自启动服务。
-4. 授权完成后，重启设备即可自动进入 FlipClock 主界面，并自动点亮屏幕、保持常亮。
+4. （可选）在设置页的 **主界面显示内容** 中开启 **日期 / 星期 / 农历**，更改后需重启 FlipClock 才能生效。横屏时这三项显示在主界面顶部，竖屏时显示在主界面左侧。
+5. 授权完成后，重启设备即可自动进入 FlipClock 主界面，并自动点亮屏幕、保持常亮。
 
 ### 手势操作
 
@@ -126,8 +127,9 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
 ## 技术说明
 
 - Java shim 直接取自 SDL2 的 `android-project` 目录，未做修改，以便与上游保持一致。
-- FlipClock 以 git submodule 形式引入，因为需要在项目中构建 SDL2 和 SDL2_ttf 的源码。
+- SDL2、SDL2_ttf 及 FlipClock 的源码直接提交在 `app/jni/` 下（原为 git submodule，现已改为本地文件）。
 - 原 FlipClock 使用 Meson 构建，Android 上无法直接使用，因此使用 `Android.mk` 进行原生构建。
+- 日期、星期、农历由原生 C 代码渲染（`info_bar.c` / `lunar.c`），农历使用离线算法（1900–2100），无需网络。中文字体为子集化的 Noto Sans CJK SC（`assets/flipclock_cjk.ttf`），遵循 SIL Open Font License。
 
 ## 许可证
 

@@ -83,6 +83,12 @@ struct flipclock {
 	bool ampm;
 	bool full;
 	bool show_second;
+	/* Info bar options: 主界面上的日期、星期、农历显示。 */
+	bool show_date;
+	bool show_weekday;
+	bool show_lunar;
+	double info_scale;
+	char cjk_font_path[MAX_BUFFER_LENGTH];
 	long long last_touch_time;
 	SDL_FingerID last_touch_finger;
 	bool running;

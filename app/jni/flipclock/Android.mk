@@ -9,7 +9,7 @@ SDL_TTF_PATH := ../SDL_ttf
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include $(LOCAL_PATH)/$(SDL_TTF_PATH)/include
 
-LOCAL_SRC_FILES := srcs/main.c srcs/getarg.c srcs/card.c srcs/clock.c srcs/flipclock.c
+LOCAL_SRC_FILES := srcs/main.c srcs/getarg.c srcs/card.c srcs/clock.c srcs/flipclock.c srcs/info_bar.c srcs/lunar.c
 
 LOCAL_SHARED_LIBRARIES := SDL2 SDL2_ttf
 
