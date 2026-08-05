@@ -149,8 +149,8 @@ static long _date_diff_days(int y1, int m1, int d1, int y2, int m2, int d2)
 	return (long)((s2 - s1) / 86400);
 }
 
-void lunar_from_gregorian(int year, int month, int day, char *buf,
-			  size_t buf_size)
+void lunar_from_gregorian(int year, int month, int day, bool show_year,
+			  char *buf, size_t buf_size)
 {
 	if (buf == NULL || buf_size == 0)
 		return;
@@ -217,7 +217,12 @@ void lunar_from_gregorian(int year, int month, int day, char *buf,
 		LUNAR_MONTHS[(lunar_month - 1 + 12) % 12];
 	const char *day_name = LUNAR_DAYS[(lunar_day - 1) % 30];
 
-	snprintf(buf, buf_size, "%s%s年 %s%s月%s", gan, zhi,
-		 is_leap ? "闰" : "", month_name, day_name);
+	if (show_year) {
+		snprintf(buf, buf_size, "%s%s年 %s%s月%s", gan, zhi,
+			 is_leap ? "闰" : "", month_name, day_name);
+	} else {
+		snprintf(buf, buf_size, "%s%s月%s", is_leap ? "闰" : "",
+			 month_name, day_name);
+	}
 	buf[buf_size - 1] = '\0';
 }

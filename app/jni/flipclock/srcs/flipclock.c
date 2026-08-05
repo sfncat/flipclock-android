@@ -77,6 +77,7 @@ struct flipclock *flipclock_create(void)
 	app->show_date = false;
 	app->show_weekday = false;
 	app->show_lunar = false;
+	app->show_lunar_year = false;
 	app->info_scale = 1.0;
 	app->cjk_font_path[0] = '\0';
 	app->font_path[0] = '\0';
@@ -346,6 +347,8 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 		app->show_weekday = (!strcmp(value, "true"));
 	} else if (!strcmp(key, "show_lunar")) {
 		app->show_lunar = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "show_lunar_year")) {
+		app->show_lunar_year = (!strcmp(value, "true"));
 	} else if (!strcmp(key, "info_scale")) {
 		app->info_scale = strtod(value, NULL);
 	} else if (!strcmp(key, "cjk_font")) {

@@ -87,15 +87,22 @@ void flipclock_info_bar_set_rect(struct flipclock_info_bar *bar, SDL_Rect rect,
 
 	const struct flipclock *app = bar->app;
 	int px;
+	/*
+	 * 农历干支年默认不显示，此时整行更短，可以放大信息栏字体；
+	 * 显示年份时字号略小，避免横屏单行文字过宽。
+	 */
+	bool lunar_year_shown = app->show_lunar && app->show_lunar_year;
 	if (horizontal) {
-		/* 横屏：高度约占窗口短边 10%，文字取其中约 75%。 */
-		px = (int)(rect.h * 0.75 * app->info_scale);
+		/* 横屏：高度约占窗口短边 10%，文字取其中约 75%/85%。 */
+		px = (int)(rect.h * (lunar_year_shown ? 0.75 : 0.85) *
+			   app->info_scale);
 	} else {
 		/*
-		 * 竖屏：竖排多行，按列宽取 1/4，保证 4 个全角字符左右
-		 * 的单行（如 `六月廿二`）能放进左侧信息栏。
+		 * 竖屏：竖排多行，按列宽取 1/4 或 1/3.5，保证 4 个全角字符
+		 * 左右的单行（如 `六月廿二`）能放进左侧信息栏。
 		 */
-		px = (int)(rect.w / 4 * app->info_scale);
+		px = (int)(rect.w / (lunar_year_shown ? 4 : 3.5) *
+			   app->info_scale);
 	}
 	if (px < 8)
 		px = 8;
@@ -138,8 +145,8 @@ void flipclock_info_bar_refresh(struct flipclock_info_bar *bar,
 
 	if (app->show_lunar) {
 		lunar_from_gregorian(now->tm_year + 1900, now->tm_mon + 1,
-				     now->tm_mday, bar->lunar_text,
-				     sizeof(bar->lunar_text));
+				     now->tm_mday, app->show_lunar_year,
+				     bar->lunar_text, sizeof(bar->lunar_text));
 	} else {
 		bar->lunar_text[0] = '\0';
 	}

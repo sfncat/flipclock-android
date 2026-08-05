@@ -53,6 +53,8 @@ public class MainActivity extends SDLActivity {
                     .append(prefs.getBoolean("show_weekday", false)).append('\n');
             sb.append("show_lunar=")
                     .append(prefs.getBoolean("show_lunar", false)).append('\n');
+            sb.append("show_lunar_year=")
+                    .append(prefs.getBoolean("show_lunar_year", false)).append('\n');
             File conf = new File(getFilesDir(), "flipclock.conf");
             FileOutputStream fos = new FileOutputStream(conf);
             fos.write(sb.toString().getBytes(StandardCharsets.UTF_8));
