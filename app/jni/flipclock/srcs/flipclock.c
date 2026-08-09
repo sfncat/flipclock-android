@@ -97,9 +97,21 @@ struct flipclock *flipclock_create(void)
 	snprintf(app->cjk_font_path, MAX_BUFFER_LENGTH,
 		 "%s\\flipclock_cjk.ttf", app->program_dir);
 #elif defined(__ANDROID__)
-	// Directly under `app/src/main/assets` for Android APP.
-	strncpy(app->font_path, "flipclock.ttf", MAX_BUFFER_LENGTH);
-	strncpy(app->cjk_font_path, "flipclock_cjk.ttf", MAX_BUFFER_LENGTH);
+	// The font files are copied from `app/src/main/assets` to the app
+	// internal storage by the Java layer (same as flipclock.conf), so
+	// use the absolute path here. A relative name would not resolve,
+	// because assets are not on the filesystem.
+	const char *storage = SDL_AndroidGetInternalStoragePath();
+	if (storage != NULL && storage[0] != '\0') {
+		snprintf(app->font_path, MAX_BUFFER_LENGTH, "%s/flipclock.ttf",
+			 storage);
+		snprintf(app->cjk_font_path, MAX_BUFFER_LENGTH,
+			 "%s/flipclock_cjk.ttf", storage);
+	} else {
+		strncpy(app->font_path, "flipclock.ttf", MAX_BUFFER_LENGTH);
+		strncpy(app->cjk_font_path, "flipclock_cjk.ttf",
+			MAX_BUFFER_LENGTH);
+	}
 #elif defined(__linux__) && !defined(__ANDROID__)
 	strncpy(app->font_path, PACKAGE_DATADIR "/fonts/flipclock.ttf",
 		MAX_BUFFER_LENGTH);

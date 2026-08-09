@@ -12,6 +12,7 @@ import android.view.WindowManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import org.libsdl.app.SDLActivity;
@@ -33,6 +34,9 @@ public class MainActivity extends SDLActivity {
         // Must be called before SDLActivity initializes the native layer,
         // so that the C code can read the latest settings from flipclock.conf.
         writeNativeConf();
+        // The native layer loads the fonts from the internal storage, so copy
+        // them out of the APK assets first.
+        copyAssets();
         super.onCreate(savedInstanceState);
         keepScreenOnAfterBoot();
     }
@@ -61,6 +65,36 @@ public class MainActivity extends SDLActivity {
             fos.close();
         } catch (Exception e) {
             Log.w(TAG, "Failed to write flipclock.conf", e);
+        }
+    }
+
+    /**
+     * Copy the bundled font files from the APK assets into the internal
+     * storage, where the native layer expects to find them
+     * (SDL_AndroidGetInternalStoragePath()). Asset files are immutable, so
+     * the copy is only needed once per install.
+     */
+    private void copyAssets() {
+        copyAssetToFiles("flipclock.ttf");
+        copyAssetToFiles("flipclock_cjk.ttf");
+    }
+
+    private void copyAssetToFiles(String assetName) {
+        try {
+            File out = new File(getFilesDir(), assetName);
+            // Always overwrite: a stale copy (e.g. a broken placeholder from an
+            // older app version) must not survive an app update.
+            try (InputStream in = getAssets().open(assetName);
+                 FileOutputStream fos = new FileOutputStream(out)) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    fos.write(buf, 0, len);
+                }
+                fos.flush();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to copy asset " + assetName, e);
         }
     }
 

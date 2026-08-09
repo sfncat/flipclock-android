@@ -13,13 +13,17 @@ android {
         if (buildAsApplication) {
             applicationId "one.alynx.flipclock"
         }
-        minSdkVersion 19
+        // minSdk 21 required by NDK r28 (16 KB page size support).
+        minSdkVersion 21
         targetSdkVersion 33
         versionCode 9
         versionName "1.1.1"
+        // NDK r28+ aligns 64-bit libraries to 16 KB by default, which is
+        // required for Android 15+ devices with 16 KB memory page sizes.
+        ndkVersion "28.2.13676358"
         externalNativeBuild {
             ndkBuild {
-                arguments "APP_PLATFORM=android-19"
+                arguments "APP_PLATFORM=android-21"
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
             }
             // cmake {
