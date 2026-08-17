@@ -30,6 +30,7 @@ public class SettingsActivity extends Activity {
     private static final String KEY_SHOW_WEEKDAY = "show_weekday";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_SHOW_LUNAR_YEAR = "show_lunar_year";
+    private static final String KEY_INFO_VERTICAL = "info_vertical";
     private static final int REQUEST_NOTIFICATION_PERMISSION = 100;
     private static final int REQUEST_BATTERY_OPTIMIZATION = 101;
 
@@ -38,6 +39,7 @@ public class SettingsActivity extends Activity {
     private Switch showWeekdaySwitch;
     private Switch showLunarSwitch;
     private Switch showLunarYearSwitch;
+    private Switch infoVerticalSwitch;
     private Button overlayButton;
     private TextView descriptionText;
     private SharedPreferences prefs;
@@ -57,6 +59,7 @@ public class SettingsActivity extends Activity {
         showWeekdaySwitch = findViewById(R.id.show_weekday_switch);
         showLunarSwitch = findViewById(R.id.show_lunar_switch);
         showLunarYearSwitch = findViewById(R.id.show_lunar_year_switch);
+        infoVerticalSwitch = findViewById(R.id.info_vertical_switch);
 
         boolean enabled = prefs.getBoolean(KEY_AUTO_START, false);
         autoStartSwitch.setChecked(enabled);
@@ -73,11 +76,13 @@ public class SettingsActivity extends Activity {
             }
         });
 
-        showDateSwitch.setChecked(prefs.getBoolean(KEY_SHOW_DATE, false));
-        showWeekdaySwitch.setChecked(prefs.getBoolean(KEY_SHOW_WEEKDAY, false));
-        showLunarSwitch.setChecked(prefs.getBoolean(KEY_SHOW_LUNAR, false));
+        showDateSwitch.setChecked(prefs.getBoolean(KEY_SHOW_DATE, true));
+        showWeekdaySwitch.setChecked(prefs.getBoolean(KEY_SHOW_WEEKDAY, true));
+        showLunarSwitch.setChecked(prefs.getBoolean(KEY_SHOW_LUNAR, true));
         showLunarYearSwitch.setChecked(
                 prefs.getBoolean(KEY_SHOW_LUNAR_YEAR, false));
+        infoVerticalSwitch.setChecked(
+                prefs.getBoolean(KEY_INFO_VERTICAL, false));
         showDateSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
         showWeekdaySwitch.setOnCheckedChangeListener(
@@ -86,6 +91,8 @@ public class SettingsActivity extends Activity {
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_LUNAR, isChecked).apply());
         showLunarYearSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_LUNAR_YEAR, isChecked).apply());
+        infoVerticalSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_INFO_VERTICAL, isChecked).apply());
 
         overlayButton.setOnClickListener(v -> openOverlaySettings());
         batteryButton.setOnClickListener(v -> openBatteryOptimizationSettings());

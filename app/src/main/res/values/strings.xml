@@ -24,5 +24,6 @@
     <string name="show_weekday_label">显示星期</string>
     <string name="show_lunar_label">显示农历</string>
     <string name="show_lunar_year_label">显示农历年份</string>
+    <string name="info_vertical_label">竖排文字</string>
     <string name="info_bar_restart_hint">提示：更改以上选项后，需重启 FlipClock 才能生效。横屏时显示在主界面顶部，竖屏时显示在左侧。</string>
 </resources>

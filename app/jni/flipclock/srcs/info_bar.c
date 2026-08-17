@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -20,6 +21,148 @@
 
 static const char *WEEKDAY_NAMES[7] = { "星期日", "星期一", "星期二", "星期三",
 					"星期四", "星期五", "星期六" };
+
+/* 竖排文字：最多 3 个文本源，按空格拆出的组数与单组字符数上限。 */
+#define MAX_TYPO_GROUPS 8
+#define MAX_TYPO_GLYPHS 32
+
+struct typo_group {
+	const char *text;
+	int length;
+};
+
+struct typo_glyph {
+	SDL_Texture *texture;
+	int w; /* 旋转后的显示宽。 */
+	int h; /* 旋转后的显示高。 */
+	bool rotated;
+};
+
+/**
+ * 解码一个 UTF-8 字符，返回 Unicode 码点并输出占用字节数；
+ * 返回 0 且 `*len == 0` 表示字符串结束，返回 0 且 `*len > 0` 表示非法字节
+ * （按单字节处理，避免死循环）。
+ */
+static uint32_t _utf8_decode_char(const char *s, int *len)
+{
+	const unsigned char *u = (const unsigned char *)s;
+	if (u[0] == '\0') {
+		*len = 0;
+		return 0;
+	}
+	if (u[0] < 0x80) {
+		*len = 1;
+		return u[0];
+	}
+	if ((u[0] & 0xE0) == 0xC0 && (u[1] & 0xC0) == 0x80) {
+		*len = 2;
+		return ((uint32_t)(u[0] & 0x1F) << 6) | (u[1] & 0x3F);
+	}
+	if ((u[0] & 0xF0) == 0xE0 && (u[1] & 0xC0) == 0x80 &&
+	    (u[2] & 0xC0) == 0x80) {
+		*len = 3;
+		return ((uint32_t)(u[0] & 0x0F) << 12) |
+		       ((uint32_t)(u[1] & 0x3F) << 6) | (u[2] & 0x3F);
+	}
+	if ((u[0] & 0xF8) == 0xF0 && (u[1] & 0xC0) == 0x80 &&
+	    (u[2] & 0xC0) == 0x80 && (u[3] & 0xC0) == 0x80) {
+		*len = 4;
+		return ((uint32_t)(u[0] & 0x07) << 18) |
+		       ((uint32_t)(u[1] & 0x3F) << 12) |
+		       ((uint32_t)(u[2] & 0x3F) << 6) | (u[3] & 0x3F);
+	}
+	*len = 1;
+	return u[0];
+}
+
+/* 判断是否为 CJK 汉字（直立显示）；否则（ASCII/拉丁）旋转 90°。 */
+static bool _is_cjk(uint32_t cp)
+{
+	return (cp >= 0x4E00 && cp <= 0x9FFF) ||
+	       (cp >= 0x3400 && cp <= 0x4DBF) ||
+	       (cp >= 0xF900 && cp <= 0xFAFF);
+}
+
+/**
+ * 收集竖排文本组：按 日期 → 星期 → 农历 顺序，忽略空文本；
+ * 每个文本再按空格拆组（农历 `丙午年 六月廿二` 会拆成两组）。
+ */
+static int _typo_collect_groups(const struct flipclock_info_bar *bar,
+				struct typo_group groups[], int max_groups)
+{
+	const char *texts[3];
+	int n = 0;
+	if (bar->date_text[0])
+		texts[n++] = bar->date_text;
+	if (bar->weekday_text[0])
+		texts[n++] = bar->weekday_text;
+	if (bar->lunar_text[0])
+		texts[n++] = bar->lunar_text;
+	int count = 0;
+	for (int t = 0; t < n && count < max_groups; ++t) {
+		const char *p = texts[t];
+		const char *seg_start = p;
+		for (;;) {
+			if (*p == ' ' || *p == '\0') {
+				if (p > seg_start && count < max_groups) {
+					groups[count].text = seg_start;
+					groups[count].length =
+						(int)(p - seg_start);
+					++count;
+				}
+				seg_start = p + 1;
+				if (*p == '\0')
+					break;
+			}
+			++p;
+		}
+	}
+	return count;
+}
+
+/**
+ * 竖排模式字号：宽度约束按一列字符宽（rect.w * 0.9），高度约束按
+ * 直立字符占 1 单位、旋转字符占 0.6 单位、组间空隙 0.6 单位估算，
+ * 取两者较小值乘以 info_scale。文本为空时返回 0。
+ */
+static int _typography_font_px(const struct flipclock_info_bar *bar)
+{
+	struct typo_group groups[MAX_TYPO_GROUPS];
+	int g = _typo_collect_groups(bar, groups, MAX_TYPO_GROUPS);
+	if (g == 0)
+		return 0;
+
+	int cjk_count = 0, ascii_count = 0;
+	for (int i = 0; i < g; ++i) {
+		const char *p = groups[i].text;
+		const char *end = p + groups[i].length;
+		while (p < end) {
+			int len;
+			uint32_t cp = _utf8_decode_char(p, &len);
+			if (len <= 0)
+				break;
+			p += len;
+			if (_is_cjk(cp))
+				++cjk_count;
+			else
+				++ascii_count;
+		}
+	}
+	/*
+	 * 直立汉字实际字形高度约为字号的 1.2~1.3 倍（含行高），估算时取
+	 * 保守系数，并给信息栏高度留 5% 余量，避免整列超出而被顶部裁切。
+	 */
+	double units = cjk_count * 1.25 + ascii_count * 0.6 + (g - 1) * 0.7;
+	if (units <= 0)
+		return 0;
+	double px_w = bar->rect.w * 0.9;
+	double px_h = bar->rect.h * 0.95 / units;
+	double px = (px_w < px_h ? px_w : px_h) * bar->app->info_scale;
+	int px_i = (int)px;
+	if (px_i < 8)
+		px_i = 8;
+	return px_i;
+}
 
 static void _flipclock_info_bar_close_font(struct flipclock_info_bar *bar)
 {
@@ -63,6 +206,7 @@ flipclock_info_bar_create(struct flipclock *app, SDL_Renderer *renderer)
 	bar->app = app;
 	bar->renderer = renderer;
 	bar->font = NULL;
+	bar->font_px = 0;
 	bar->rect.x = 0;
 	bar->rect.y = 0;
 	bar->rect.w = 0;
@@ -96,6 +240,16 @@ void flipclock_info_bar_set_rect(struct flipclock_info_bar *bar, SDL_Rect rect,
 		/* 横屏：高度约占窗口短边 10%，文字取其中约 75%/85%。 */
 		px = (int)(rect.h * (lunar_year_shown ? 0.75 : 0.85) *
 			   app->info_scale);
+	} else if (app->info_vertical) {
+		/*
+		 * 竖屏 + 传统竖排：按字符数与屏高自适应字号，
+		 * 见 `_typography_font_px`。首次布局时文本尚未生成，
+		 * 回退旧算法，随后在 `flipclock_info_bar_refresh` 中纠正。
+		 */
+		px = _typography_font_px(bar);
+		if (px == 0)
+			px = (int)(rect.w / (lunar_year_shown ? 4 : 3.5) *
+				   app->info_scale);
 	} else {
 		/*
 		 * 竖屏：竖排多行，按列宽取 1/4 或 1/3.5，保证 4 个全角字符
@@ -106,6 +260,7 @@ void flipclock_info_bar_set_rect(struct flipclock_info_bar *bar, SDL_Rect rect,
 	}
 	if (px < 8)
 		px = 8;
+	bar->font_px = px;
 
 	_flipclock_info_bar_close_font(bar);
 	_flipclock_info_bar_open_font(bar, px);
@@ -151,6 +306,21 @@ void flipclock_info_bar_refresh(struct flipclock_info_bar *bar,
 		bar->lunar_text[0] = '\0';
 	}
 
+	/*
+	 * 竖排模式下字号随文本内容变化（组数/字符数），首次布局时文本
+	 * 尚未生成（`_typography_font_px` 返回 0 走了旧算法），这里在文本
+	 * 就绪后按需纠正字号；跨日/农历切换导致内容变化时同样生效。
+	 */
+	if (!bar->horizontal && app->info_vertical) {
+		int px = _typography_font_px(bar);
+		if (px > 0 && px != bar->font_px) {
+			bar->font_px = px;
+			_flipclock_info_bar_close_font(bar);
+			_flipclock_info_bar_open_font(bar, px);
+			bar->enabled = (bar->font != NULL);
+		}
+	}
+
 	bar->last_yday = now->tm_yday;
 	bar->last_year = now->tm_year + 1900;
 }
@@ -178,6 +348,48 @@ static SDL_Texture *_render_line(struct flipclock_info_bar *bar,
 	if (texture == NULL) {
 		LOG_ERROR("Info bar: SDL_CreateTextureFromSurface failed: %s\n",
 			  SDL_GetError());
+	}
+	return texture;
+}
+
+/**
+ * 渲染单个码点：编码回 UTF-8 后复用 `_render_line` 渲染。
+ * `rotated` 为 true 表示该字符需顺时针旋转 90°，
+ * 输出的 `out_w/out_h` 为绘制时（旋转后）的尺寸，即「原高 × 原宽」。
+ */
+static SDL_Texture *_render_glyph(struct flipclock_info_bar *bar,
+				  uint32_t cp, bool rotated, int *out_w,
+				  int *out_h)
+{
+	char utf8[5];
+	int len = 0;
+	if (cp < 0x80) {
+		utf8[len++] = (char)cp;
+	} else if (cp < 0x800) {
+		utf8[len++] = (char)(0xC0 | (cp >> 6));
+		utf8[len++] = (char)(0x80 | (cp & 0x3F));
+	} else if (cp < 0x10000) {
+		utf8[len++] = (char)(0xE0 | (cp >> 12));
+		utf8[len++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		utf8[len++] = (char)(0x80 | (cp & 0x3F));
+	} else {
+		utf8[len++] = (char)(0xF0 | (cp >> 18));
+		utf8[len++] = (char)(0x80 | ((cp >> 12) & 0x3F));
+		utf8[len++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		utf8[len++] = (char)(0x80 | (cp & 0x3F));
+	}
+	utf8[len] = '\0';
+
+	int w, h;
+	SDL_Texture *texture = _render_line(bar, utf8, &w, &h);
+	if (texture == NULL)
+		return NULL;
+	if (rotated) {
+		*out_w = h;
+		*out_h = w;
+	} else {
+		*out_w = w;
+		*out_h = h;
 	}
 	return texture;
 }
@@ -319,6 +531,140 @@ static void _draw_vertical(struct flipclock_info_bar *bar)
 	}
 }
 
+/**
+ * 渲染竖排全部字形并计算整体尺寸（总高/最宽列宽）。重复调用时先销毁
+ * 上一批纹理，供字号调整后重新渲染使用。
+ */
+static void _typo_render_glyphs(struct flipclock_info_bar *bar,
+				const struct typo_group groups[], int g,
+				struct typo_glyph glyphs[], int group_end[],
+				int *out_count, int *out_total_h,
+				int *out_col_w)
+{
+	int count = 0;
+	for (int i = 0; i < MAX_TYPO_GLYPHS; ++i) {
+		if (glyphs[i].texture != NULL) {
+			SDL_DestroyTexture(glyphs[i].texture);
+			glyphs[i].texture = NULL;
+		}
+	}
+	for (int i = 0; i < g && count < MAX_TYPO_GLYPHS; ++i) {
+		const char *p = groups[i].text;
+		const char *end = p + groups[i].length;
+		while (p < end && count < MAX_TYPO_GLYPHS) {
+			int len;
+			uint32_t cp = _utf8_decode_char(p, &len);
+			if (len <= 0)
+				break;
+			p += len;
+			bool rotated = !_is_cjk(cp);
+			glyphs[count].rotated = rotated;
+			glyphs[count].texture =
+				_render_glyph(bar, cp, rotated,
+					      &glyphs[count].w,
+					      &glyphs[count].h);
+			if (glyphs[count].texture == NULL) {
+				/* 渲染失败时按估算尺寸占位，布局不塌缩。 */
+				if (rotated) {
+					glyphs[count].w = bar->font_px;
+					glyphs[count].h =
+						(int)(bar->font_px * 0.6);
+				} else {
+					glyphs[count].w = bar->font_px;
+					glyphs[count].h = bar->font_px;
+				}
+			}
+			++count;
+		}
+		group_end[i] = count;
+	}
+
+	int gap = (int)(bar->font_px * 0.6);
+	int total_h = gap * (g - 1);
+	int col_w = 0;
+	for (int i = 0; i < count; ++i) {
+		total_h += glyphs[i].h;
+		if (glyphs[i].w > col_w)
+			col_w = glyphs[i].w;
+	}
+	if (out_count != NULL)
+		*out_count = count;
+	if (out_total_h != NULL)
+		*out_total_h = total_h;
+	if (out_col_w != NULL)
+		*out_col_w = col_w;
+}
+
+/**
+ * 传统竖排文字：字符自上而下逐字排列。
+ * - CJK 汉字保持直立；
+ * - ASCII/数字等旋转 90°，上端朝右（angle = 90），从右往左读；
+ * - 组间（日期 / 星期 / 农历各组）留空隙，整列垂直居中、水平居中。
+ * - 防御：不同字体的实际字形高度与估算存在偏差，若整列仍超出信息栏
+ *   高度，则按比例缩小字号后重新渲染，避免顶部被裁切。
+ */
+static void _draw_vertical_typography(struct flipclock_info_bar *bar)
+{
+	struct typo_group groups[MAX_TYPO_GROUPS];
+	int g = _typo_collect_groups(bar, groups, MAX_TYPO_GROUPS);
+	if (g == 0)
+		return;
+
+	struct typo_glyph glyphs[MAX_TYPO_GLYPHS] = { { 0 } };
+	int group_end[MAX_TYPO_GROUPS] = { 0 };
+	int count, total_h, col_w;
+	_typo_render_glyphs(bar, groups, g, glyphs, group_end, &count,
+			    &total_h, &col_w);
+	if (count == 0)
+		return;
+
+	if (total_h > bar->rect.h && bar->font_px > 8) {
+		int new_px = (int)((double)bar->font_px * bar->rect.h /
+				   total_h);
+		if (new_px < 8)
+			new_px = 8;
+		if (new_px != bar->font_px) {
+			bar->font_px = new_px;
+			_flipclock_info_bar_close_font(bar);
+			_flipclock_info_bar_open_font(bar, new_px);
+			bar->enabled = (bar->font != NULL);
+			_typo_render_glyphs(bar, groups, g, glyphs,
+					    group_end, &count, &total_h,
+					    &col_w);
+		}
+	}
+	if (count == 0)
+		return;
+
+	int gap = (int)(bar->font_px * 0.6);
+	int start_y = bar->rect.y + (bar->rect.h - total_h) / 2;
+	int x = bar->rect.x + (bar->rect.w - col_w) / 2;
+	int cur_y = start_y;
+	int glyph_i = 0;
+	for (int i = 0; i < g; ++i) {
+		for (; glyph_i < group_end[i]; ++glyph_i) {
+			struct typo_glyph *gly = &glyphs[glyph_i];
+			SDL_Rect dst = { x + (col_w - gly->w) / 2, cur_y,
+					 gly->w, gly->h };
+			if (gly->texture != NULL) {
+				if (gly->rotated)
+					SDL_RenderCopyEx(bar->renderer,
+							 gly->texture, NULL,
+							 &dst, 90, NULL,
+							 SDL_FLIP_NONE);
+				else
+					SDL_RenderCopy(bar->renderer,
+						       gly->texture, NULL,
+						       &dst);
+				SDL_DestroyTexture(gly->texture);
+			}
+			cur_y += gly->h;
+		}
+		if (i < g - 1)
+			cur_y += gap;
+	}
+}
+
 void flipclock_info_bar_draw(struct flipclock_info_bar *bar)
 {
 	RETURN_IF_FAIL(bar != NULL);
@@ -330,6 +676,8 @@ void flipclock_info_bar_draw(struct flipclock_info_bar *bar)
 
 	if (bar->horizontal)
 		_draw_horizontal(bar);
+	else if (bar->app->info_vertical)
+		_draw_vertical_typography(bar);
 	else
 		_draw_vertical(bar);
 }

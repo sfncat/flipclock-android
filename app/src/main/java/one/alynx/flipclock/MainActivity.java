@@ -52,13 +52,15 @@ public class MainActivity extends SDLActivity {
                     getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             StringBuilder sb = new StringBuilder();
             sb.append("show_date=")
-                    .append(prefs.getBoolean("show_date", false)).append('\n');
+                    .append(prefs.getBoolean("show_date", true)).append('\n');
             sb.append("show_weekday=")
-                    .append(prefs.getBoolean("show_weekday", false)).append('\n');
+                    .append(prefs.getBoolean("show_weekday", true)).append('\n');
             sb.append("show_lunar=")
-                    .append(prefs.getBoolean("show_lunar", false)).append('\n');
+                    .append(prefs.getBoolean("show_lunar", true)).append('\n');
             sb.append("show_lunar_year=")
                     .append(prefs.getBoolean("show_lunar_year", false)).append('\n');
+            sb.append("info_vertical=")
+                    .append(prefs.getBoolean("info_vertical", false)).append('\n');
             File conf = new File(getFilesDir(), "flipclock.conf");
             FileOutputStream fos = new FileOutputStream(conf);
             fos.write(sb.toString().getBytes(StandardCharsets.UTF_8));

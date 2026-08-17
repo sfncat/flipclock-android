@@ -13,6 +13,7 @@ struct flipclock_info_bar {
 	struct flipclock *app;
 	SDL_Renderer *renderer;
 	TTF_Font *font;
+	int font_px; /* 当前字体打开时的字号，用于竖排模式按需重开。 */
 	SDL_Rect rect;
 	bool horizontal;
 	/* True 当至少一项开启且字体加载成功。 */
