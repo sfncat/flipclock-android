@@ -49,7 +49,7 @@ double info_scale;   // 信息栏文字缩放，默认 1.0
 char cjk_font_path[MAX_BUFFER_LENGTH]; // CJK 字体路径
 ```
 
-默认值：`show_date = show_weekday = show_lunar = false`，保持向后兼容；`info_scale = 1.0`；`cjk_font_path` 默认 `"flipclock_cjk.ttf"`（Android assets 根目录）。
+默认值：`show_date = show_weekday = show_lunar = true`（Android 端默认开启，可在设置页关闭）；`info_scale = 1.0`；`cjk_font_path` 默认 `"flipclock_cjk.ttf"`（Android assets 根目录）。
 
 ### 4.2 `struct flipclock_info_bar`
 
@@ -135,7 +135,8 @@ struct flipclock_info_bar *info_bar; // 可为 NULL，表示所有选项均关�
   - 第 1 行：日期（如 `2026`、`08-04` 分两小行，或单行）
   - 第 2 行：星期
   - 第 3 行：农历
-- 因为中文竖排文字实现复杂，第一版采用「横向文字，多行堆叠」的方式：文字水平书写，但每一项独占一行；整体信息栏作为一个左侧竖条区域。
+- 最初版本采用「横向文字，多行堆叠」：文字水平书写，每一项独占一行；整体信息栏作为一个左侧竖条区域。
+- 后续已实现**传统竖排文字**（字符自上而下逐字排列，汉字直立、数字旋转 90°）并作为竖屏默认排版：配置键 `info_vertical` 默认开启，关闭后回退为横向堆叠，详见 [`vertical-typography-design.md`](vertical-typography-design.md)。
 - **时钟卡片区域**：
   - `int info_w = info_bar_visible ? clock->w * INFO_RATIO + space_size : 0;`
   - `hour_rect.x = info_w + ((clock->w - info_w) - card_size) / 2;`
@@ -187,9 +188,9 @@ void lunar_from_gregorian(int year, int month, int day,
 
 | 键 | 类型 | 默认 | 说明 |
 |----|------|------|------|
-| `show_date` | bool | `false` | 是否显示公历日期 |
-| `show_weekday` | bool | `false` | 是否显示星期 |
-| `show_lunar` | bool | `false` | 是否显示农历 |
+| `show_date` | bool | `true` | 是否显示公历日期 |
+| `show_weekday` | bool | `true` | 是否显示星期 |
+| `show_lunar` | bool | `true` | 是否显示农历 |
 | `info_scale` | double | `1.0` | 信息栏文字缩放 |
 | `cjk_font` | string | `flipclock_cjk.ttf` | CJK 字体路径 |
 
@@ -242,6 +243,7 @@ Android 目前没有默认的 `flipclock.conf` 生成流程；本次新增：
 - [x] 修改 [`SettingsActivity.java`](file:///home/kali/workspace/flipclock-android/app/src/main/java/one/alynx/flipclock/SettingsActivity.java)：读写三个新键
 - [x] 修改 [`MainActivity.java`](file:///home/kali/workspace/flipclock-android/app/src/main/java/one/alynx/flipclock/MainActivity.java)：`onCreate` 中根据 `SharedPreferences` 生成/更新 `getFilesDir()/flipclock.conf`，native 通过 `SDL_AndroidGetInternalStoragePath()` 读取
 - [x] 修改 [`README_CN.md`](file:///home/kali/workspace/flipclock-android/README_CN.md)：功能列表、设置页说明、技术说明中补充新选项
+- [x] 竖屏传统竖排文字（`info_vertical`，默认开启）及设置页开关，详见 [`vertical-typography-design.md`](vertical-typography-design.md)
 
 ## 12. 构建说明
 

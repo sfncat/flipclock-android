@@ -88,7 +88,7 @@ struct flipclock {
 	bool show_weekday;
 	bool show_lunar;
 	bool show_lunar_year; /* 农历是否显示干支年，默认关闭。 */
-	bool info_vertical;   /* 竖屏时信息栏采用传统竖排文字，默认关闭。 */
+	bool info_vertical;   /* 竖屏时信息栏采用传统竖排文字，默认开启。 */
 	double info_scale;
 	char cjk_font_path[MAX_BUFFER_LENGTH];
 	long long last_touch_time;

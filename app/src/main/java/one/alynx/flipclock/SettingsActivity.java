@@ -82,7 +82,7 @@ public class SettingsActivity extends Activity {
         showLunarYearSwitch.setChecked(
                 prefs.getBoolean(KEY_SHOW_LUNAR_YEAR, false));
         infoVerticalSwitch.setChecked(
-                prefs.getBoolean(KEY_INFO_VERTICAL, false));
+                prefs.getBoolean(KEY_INFO_VERTICAL, true));
         showDateSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
         showWeekdaySwitch.setOnCheckedChangeListener(

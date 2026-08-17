@@ -78,7 +78,7 @@ struct flipclock *flipclock_create(void)
 	app->show_weekday = true;
 	app->show_lunar = true;
 	app->show_lunar_year = false;
-	app->info_vertical = false;
+	app->info_vertical = true;
 	app->info_scale = 1.0;
 	app->cjk_font_path[0] = '\0';
 	app->font_path[0] = '\0';

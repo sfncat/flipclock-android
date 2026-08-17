@@ -25,6 +25,9 @@ static const char *WEEKDAY_NAMES[7] = { "星期日", "星期一", "星期二", "
 /* 竖排文字：最多 3 个文本源，按空格拆出的组数与单组字符数上限。 */
 #define MAX_TYPO_GROUPS 8
 #define MAX_TYPO_GLYPHS 32
+/* 组内相邻字形之间的垂直间距（相对字号的倍数），
+   避免日期数字等旋转字符上下完全挨在一起。 */
+#define TYPO_GLYPH_SPACING 0.15
 
 struct typo_group {
 	const char *text;
@@ -151,8 +154,12 @@ static int _typography_font_px(const struct flipclock_info_bar *bar)
 	/*
 	 * 直立汉字实际字形高度约为字号的 1.2~1.3 倍（含行高），估算时取
 	 * 保守系数，并给信息栏高度留 5% 余量，避免整列超出而被顶部裁切。
+	 * 组内字形间距数 = 总字数 - 组数，计入估算以保证字号合理。
 	 */
-	double units = cjk_count * 1.25 + ascii_count * 0.6 + (g - 1) * 0.7;
+	double units = cjk_count * 1.25 + ascii_count * 0.6 +
+		       TYPO_GLYPH_SPACING *
+			       (cjk_count + ascii_count - g) +
+		       (g - 1) * 0.7;
 	if (units <= 0)
 		return 0;
 	double px_w = bar->rect.w * 0.9;
@@ -580,7 +587,8 @@ static void _typo_render_glyphs(struct flipclock_info_bar *bar,
 	}
 
 	int gap = (int)(bar->font_px * 0.6);
-	int total_h = gap * (g - 1);
+	int glyph_gap = (int)(bar->font_px * TYPO_GLYPH_SPACING);
+	int total_h = glyph_gap * (count - g) + gap * (g - 1);
 	int col_w = 0;
 	for (int i = 0; i < count; ++i) {
 		total_h += glyphs[i].h;
@@ -637,6 +645,7 @@ static void _draw_vertical_typography(struct flipclock_info_bar *bar)
 		return;
 
 	int gap = (int)(bar->font_px * 0.6);
+	int glyph_gap = (int)(bar->font_px * TYPO_GLYPH_SPACING);
 	int start_y = bar->rect.y + (bar->rect.h - total_h) / 2;
 	int x = bar->rect.x + (bar->rect.w - col_w) / 2;
 	int cur_y = start_y;
@@ -659,6 +668,9 @@ static void _draw_vertical_typography(struct flipclock_info_bar *bar)
 				SDL_DestroyTexture(gly->texture);
 			}
 			cur_y += gly->h;
+			/* 组内字形之间加一点间距，组末不加（由组间空隙接管）。 */
+			if (glyph_i + 1 < group_end[i])
+				cur_y += glyph_gap;
 		}
 		if (i < g - 1)
 			cur_y += gap;

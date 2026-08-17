@@ -60,7 +60,7 @@ public class MainActivity extends SDLActivity {
             sb.append("show_lunar_year=")
                     .append(prefs.getBoolean("show_lunar_year", false)).append('\n');
             sb.append("info_vertical=")
-                    .append(prefs.getBoolean("info_vertical", false)).append('\n');
+                    .append(prefs.getBoolean("info_vertical", true)).append('\n');
             File conf = new File(getFilesDir(), "flipclock.conf");
             FileOutputStream fos = new FileOutputStream(conf);
             fos.write(sb.toString().getBytes(StandardCharsets.UTF_8));

@@ -13,7 +13,8 @@ Fliqlo, the closed-source app for macOS has an iOS version, so I tried to make a
 
 - **Flip clock display**: Full-screen clock, supports both landscape and portrait orientations.
 - **24-hour format with seconds by default**: Shows the 24-hour clock with seconds on startup.
-- **Date / weekday / lunar calendar display**: Each can be toggled independently in settings. In landscape they appear at the top of the main screen, in portrait on the left side, with a smaller font than the time.
+- **Date / weekday / lunar calendar display**: Shown by default; each can be toggled independently in settings. In landscape they appear at the top of the main screen, in portrait on the left side, with a smaller font than the time.
+- **Vertical text (portrait)**: In portrait the info bar uses traditional vertical typography by default (upright CJK characters, 90°-rotated digits); it can be switched back to stacked horizontal lines in settings.
 - **Auto-start on boot**: Automatically launches FlipClock after a reboot, turning the screen on and keeping it awake, with no manual action needed.
 - **User authorization management**: All sensitive permissions (auto-start, overlay, notification, battery optimization, etc.) require the user to manually enable and consent in settings.
 - **Native settings screen**: Configure auto-start on boot, overlay permission, battery optimization, etc.
@@ -88,7 +89,7 @@ Find an old phone with an **LCD screen** and use it as a dedicated clock. Modern
    - **Overlay permission**: used to create a temporary visible window on Android 10+, which allows the main screen to be started from the background.
    - **Notification permission** (Android 13+): for the foreground service notification.
    - **Battery optimization**: it is recommended to disable battery optimization, otherwise the system may kill the boot auto-start service.
-4. (Optional) In the **Main screen display content** section of settings, enable **Date / Weekday / Lunar calendar**. Changes take effect after restarting FlipClock. In landscape they appear at the top of the main screen, in portrait on the left side.
+4. (Optional) **Date / Weekday / Lunar calendar** are shown by default and can be toggled in the **Main screen display content** section. Changes take effect after restarting FlipClock. In landscape they appear at the top of the main screen, in portrait on the left side, using traditional vertical text by default (turn off **Vertical text** in settings to fall back to stacked horizontal lines).
 5. After authorization, reboot the device and FlipClock will launch automatically, turn the screen on and keep it awake.
 
 ## Gestures
