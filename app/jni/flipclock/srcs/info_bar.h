@@ -31,7 +31,7 @@ void flipclock_info_bar_set_rect(struct flipclock_info_bar *bar, SDL_Rect rect,
 				 bool horizontal);
 void flipclock_info_bar_refresh(struct flipclock_info_bar *bar,
 				const struct tm *now, bool force);
-void flipclock_info_bar_draw(struct flipclock_info_bar *bar);
+void flipclock_info_bar_draw(struct flipclock_info_bar *bar, SDL_Point offset);
 void flipclock_info_bar_destroy(struct flipclock_info_bar *bar);
 
 #endif

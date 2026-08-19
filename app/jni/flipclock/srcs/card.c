@@ -366,7 +366,7 @@ void flipclock_card_flip(struct flipclock_card *card)
 	card->start_tick = SDL_GetTicks();
 }
 
-void flipclock_card_animate(struct flipclock_card *card)
+void flipclock_card_animate(struct flipclock_card *card, SDL_Point offset)
 {
 	RETURN_IF_FAIL(card != NULL);
 
@@ -379,6 +379,11 @@ void flipclock_card_animate(struct flipclock_card *card)
 		card->should_redraw = false;
 	}
 
+	// Apply burn-in protection offset to the final draw position only.
+	SDL_Rect target_rect = card->rect;
+	target_rect.x += offset.x;
+	target_rect.y += offset.y;
+
 	// Do the flipping animation by copy card to window's given position.
 
 	long long progress = SDL_GetTicks() - card->start_tick;
@@ -388,21 +393,21 @@ void flipclock_card_animate(struct flipclock_card *card)
 		// Card-local position.
 		SDL_Rect card_local_rect = { 0, 0, card->rect.w, card->rect.h };
 		SDL_RenderCopy(card->renderer, card->current, &card_local_rect,
-			       &card->rect);
+			       &target_rect);
 		return;
 	}
 
 	// Copy the upper current digit.
 	// Card-local position for source.
 	SDL_Rect half_source_rect = { 0, 0, card->rect.w, card->rect.h / 2 };
-	SDL_Rect half_target_rect = { card->rect.x, card->rect.y, card->rect.w,
+	SDL_Rect half_target_rect = { target_rect.x, target_rect.y, card->rect.w,
 				      card->rect.h / 2 };
 	SDL_RenderCopy(card->renderer, card->current, &half_source_rect,
 		       &half_target_rect);
 
 	// Copy the lower previous digit.
 	half_source_rect.y = card->rect.h / 2;
-	half_target_rect.y = card->rect.y + card->rect.h / 2;
+	half_target_rect.y = target_rect.y + card->rect.h / 2;
 	SDL_RenderCopy(card->renderer, card->previous, &half_source_rect,
 		       &half_target_rect);
 
@@ -418,7 +423,7 @@ void flipclock_card_animate(struct flipclock_card *card)
 	double scale = cos(angle);
 	half_source_rect.y = upper_half ? 0 : card->rect.h / 2;
 	half_target_rect.y =
-		card->rect.y + (upper_half ?
+		target_rect.y + (upper_half ?
 					(double)card->rect.h / 2 * (1 - scale) :
 					      (double)card->rect.h / 2);
 	half_target_rect.h = (double)card->rect.h / 2 * scale;

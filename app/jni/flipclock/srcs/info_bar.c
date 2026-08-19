@@ -401,7 +401,7 @@ static SDL_Texture *_render_glyph(struct flipclock_info_bar *bar,
 	return texture;
 }
 
-static void _draw_horizontal(struct flipclock_info_bar *bar)
+static void _draw_horizontal(struct flipclock_info_bar *bar, SDL_Point offset)
 {
 	/* 收集非空文本。 */
 	const char *texts[3];
@@ -430,8 +430,8 @@ static void _draw_horizontal(struct flipclock_info_bar *bar)
 	}
 	total_w += gap * (count - 1);
 
-	int start_x = bar->rect.x + (bar->rect.w - total_w) / 2;
-	int base_y = bar->rect.y + (bar->rect.h - max_h) / 2;
+	int start_x = bar->rect.x + offset.x + (bar->rect.w - total_w) / 2;
+	int base_y = bar->rect.y + offset.y + (bar->rect.h - max_h) / 2;
 	int cur_x = start_x;
 	for (int i = 0; i < count; ++i) {
 		if (textures[i] == NULL) {
@@ -488,7 +488,7 @@ static int _split_into_lines(const char *text,
 	return count;
 }
 
-static void _draw_vertical(struct flipclock_info_bar *bar)
+static void _draw_vertical(struct flipclock_info_bar *bar, SDL_Point offset)
 {
 	char lines[MAX_VERTICAL_LINES][INFO_TEXT_LENGTH];
 	int count = 0;
@@ -522,8 +522,8 @@ static void _draw_vertical(struct flipclock_info_bar *bar)
 	total_h += gap * (count - 1);
 
 	/* 竖屏：整体垂直居中，水平方向以最宽一行为准居中对齐。 */
-	int start_y = bar->rect.y + (bar->rect.h - total_h) / 2;
-	int base_x = bar->rect.x + (bar->rect.w - max_w) / 2;
+	int start_y = bar->rect.y + offset.y + (bar->rect.h - total_h) / 2;
+	int base_x = bar->rect.x + offset.x + (bar->rect.w - max_w) / 2;
 	int cur_y = start_y;
 	for (int i = 0; i < count; ++i) {
 		if (textures[i] == NULL) {
@@ -611,7 +611,8 @@ static void _typo_render_glyphs(struct flipclock_info_bar *bar,
  * - 防御：不同字体的实际字形高度与估算存在偏差，若整列仍超出信息栏
  *   高度，则按比例缩小字号后重新渲染，避免顶部被裁切。
  */
-static void _draw_vertical_typography(struct flipclock_info_bar *bar)
+static void _draw_vertical_typography(struct flipclock_info_bar *bar,
+				      SDL_Point offset)
 {
 	struct typo_group groups[MAX_TYPO_GROUPS];
 	int g = _typo_collect_groups(bar, groups, MAX_TYPO_GROUPS);
@@ -646,8 +647,8 @@ static void _draw_vertical_typography(struct flipclock_info_bar *bar)
 
 	int gap = (int)(bar->font_px * 0.6);
 	int glyph_gap = (int)(bar->font_px * TYPO_GLYPH_SPACING);
-	int start_y = bar->rect.y + (bar->rect.h - total_h) / 2;
-	int x = bar->rect.x + (bar->rect.w - col_w) / 2;
+	int start_y = bar->rect.y + offset.y + (bar->rect.h - total_h) / 2;
+	int x = bar->rect.x + offset.x + (bar->rect.w - col_w) / 2;
 	int cur_y = start_y;
 	int glyph_i = 0;
 	for (int i = 0; i < g; ++i) {
@@ -677,7 +678,7 @@ static void _draw_vertical_typography(struct flipclock_info_bar *bar)
 	}
 }
 
-void flipclock_info_bar_draw(struct flipclock_info_bar *bar)
+void flipclock_info_bar_draw(struct flipclock_info_bar *bar, SDL_Point offset)
 {
 	RETURN_IF_FAIL(bar != NULL);
 
@@ -687,11 +688,11 @@ void flipclock_info_bar_draw(struct flipclock_info_bar *bar)
 		return;
 
 	if (bar->horizontal)
-		_draw_horizontal(bar);
+		_draw_horizontal(bar, offset);
 	else if (bar->app->info_vertical)
-		_draw_vertical_typography(bar);
+		_draw_vertical_typography(bar, offset);
 	else
-		_draw_vertical(bar);
+		_draw_vertical(bar, offset);
 }
 
 void flipclock_info_bar_destroy(struct flipclock_info_bar *bar)

@@ -13,6 +13,8 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -31,6 +33,11 @@ public class SettingsActivity extends Activity {
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_SHOW_LUNAR_YEAR = "show_lunar_year";
     private static final String KEY_INFO_VERTICAL = "info_vertical";
+    private static final String KEY_BURN_IN_PROTECTION = "burn_in_protection";
+    private static final String KEY_BURN_IN_PROTECTION_OFFSET =
+            "burn_in_protection_offset";
+    private static final float BURN_IN_OFFSET_DEFAULT = 1.5f;
+    private static final int BURN_IN_OFFSET_MAX_PROGRESS = 50;
     private static final int REQUEST_NOTIFICATION_PERMISSION = 100;
     private static final int REQUEST_BATTERY_OPTIMIZATION = 101;
 
@@ -40,6 +47,10 @@ public class SettingsActivity extends Activity {
     private Switch showLunarSwitch;
     private Switch showLunarYearSwitch;
     private Switch infoVerticalSwitch;
+    private Switch burnInProtectionSwitch;
+    private LinearLayout burnInProtectionOffsetContainer;
+    private TextView burnInProtectionOffsetSummary;
+    private SeekBar burnInProtectionOffsetSeekBar;
     private Button overlayButton;
     private TextView descriptionText;
     private SharedPreferences prefs;
@@ -60,6 +71,13 @@ public class SettingsActivity extends Activity {
         showLunarSwitch = findViewById(R.id.show_lunar_switch);
         showLunarYearSwitch = findViewById(R.id.show_lunar_year_switch);
         infoVerticalSwitch = findViewById(R.id.info_vertical_switch);
+        burnInProtectionSwitch = findViewById(R.id.burn_in_protection_switch);
+        burnInProtectionOffsetContainer =
+                findViewById(R.id.burn_in_protection_offset_container);
+        burnInProtectionOffsetSummary =
+                findViewById(R.id.burn_in_protection_offset_summary);
+        burnInProtectionOffsetSeekBar =
+                findViewById(R.id.burn_in_protection_offset_seekbar);
 
         boolean enabled = prefs.getBoolean(KEY_AUTO_START, false);
         autoStartSwitch.setChecked(enabled);
@@ -83,6 +101,9 @@ public class SettingsActivity extends Activity {
                 prefs.getBoolean(KEY_SHOW_LUNAR_YEAR, false));
         infoVerticalSwitch.setChecked(
                 prefs.getBoolean(KEY_INFO_VERTICAL, true));
+        burnInProtectionSwitch.setChecked(
+                prefs.getBoolean(KEY_BURN_IN_PROTECTION, false));
+        setupBurnInProtectionOffset();
         showDateSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
         showWeekdaySwitch.setOnCheckedChangeListener(
@@ -93,6 +114,12 @@ public class SettingsActivity extends Activity {
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_LUNAR_YEAR, isChecked).apply());
         infoVerticalSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_INFO_VERTICAL, isChecked).apply());
+        burnInProtectionSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> {
+                    prefs.edit().putBoolean(KEY_BURN_IN_PROTECTION, isChecked)
+                            .apply();
+                    updateBurnInProtectionOffsetVisibility();
+                });
 
         overlayButton.setOnClickListener(v -> openOverlaySettings());
         batteryButton.setOnClickListener(v -> openBatteryOptimizationSettings());
@@ -201,5 +228,51 @@ public class SettingsActivity extends Activity {
         } else {
             descriptionText.setText(R.string.auto_start_disabled_description);
         }
+    }
+
+    private void setupBurnInProtectionOffset() {
+        float offset = prefs.getFloat(KEY_BURN_IN_PROTECTION_OFFSET,
+                BURN_IN_OFFSET_DEFAULT);
+        int progress = (int) (offset * 10);
+        if (progress < 0)
+            progress = 0;
+        if (progress > BURN_IN_OFFSET_MAX_PROGRESS)
+            progress = BURN_IN_OFFSET_MAX_PROGRESS;
+        burnInProtectionOffsetSeekBar.setMax(BURN_IN_OFFSET_MAX_PROGRESS);
+        burnInProtectionOffsetSeekBar.setProgress(progress);
+        updateBurnInProtectionOffsetSummary(progress);
+        updateBurnInProtectionOffsetVisibility();
+
+        burnInProtectionOffsetSeekBar.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress,
+                                                    boolean fromUser) {
+                        float value = progress / 10.0f;
+                        prefs.edit().putFloat(KEY_BURN_IN_PROTECTION_OFFSET, value)
+                                .apply();
+                        updateBurnInProtectionOffsetSummary(progress);
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                    }
+                });
+    }
+
+    private void updateBurnInProtectionOffsetSummary(int progress) {
+        String value = String.valueOf(progress / 10.0f);
+        burnInProtectionOffsetSummary.setText(getString(
+                R.string.burn_in_protection_offset_summary, value));
+    }
+
+    private void updateBurnInProtectionOffsetVisibility() {
+        boolean enabled = burnInProtectionSwitch.isChecked();
+        burnInProtectionOffsetContainer.setVisibility(
+                enabled ? LinearLayout.VISIBLE : LinearLayout.GONE);
     }
 }

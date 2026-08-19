@@ -16,10 +16,49 @@
 #define INFO_RATIO 0.10
 /* 竖屏时左侧信息栏占窗口宽度的比例（需要容纳多行文字）。 */
 #define INFO_RATIO_PORTRAIT 0.22
+/* 防烧屏：完整来回周期 60 秒，振幅由 burn_in_protection_offset 控制。 */
+#define BURN_IN_PERIOD_MS 60000
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 static bool _flipclock_clock_has_info_bar(const struct flipclock *app)
 {
 	return app->show_date || app->show_weekday || app->show_lunar;
+}
+
+/**
+ * 计算防烧屏偏移量：
+ * - 横屏时信息栏在上方、卡片在中间，两者在 Y 轴上相互靠近/远离；
+ * - 竖屏时信息栏在左方、卡片在中间，两者在 X 轴上相互靠近/远离。
+ * 函数返回信息栏应叠加的偏移，卡片组使用反向偏移。
+ */
+static SDL_Point _flipclock_clock_get_burn_in_offset(struct flipclock_clock *clock)
+{
+	SDL_Point offset = { 0, 0 };
+	if (clock == NULL || clock->app == NULL || !clock->app->burn_in_protection)
+		return offset;
+
+	int min_side = clock->w < clock->h ? clock->w : clock->h;
+	double ratio = clock->app->burn_in_protection_offset;
+	if (ratio < 0.0)
+		ratio = 0.0;
+	if (ratio > 0.05)
+		ratio = 0.05;
+	int amplitude = (int)(min_side * ratio);
+	if (amplitude < 1)
+		amplitude = 1;
+
+	Uint32 ticks = SDL_GetTicks();
+	double phase = 2.0 * M_PI * (double)(ticks % BURN_IN_PERIOD_MS) /
+		       (double)BURN_IN_PERIOD_MS;
+	int value = (int)(amplitude * sin(phase));
+
+	if (clock->w >= clock->h)
+		offset.y = value;
+	else
+		offset.x = value;
+	return offset;
 }
 
 static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
@@ -436,15 +475,18 @@ void flipclock_clock_animate(struct flipclock_clock *clock)
 			       app->background_color.a);
 	SDL_RenderClear(clock->renderer);
 
+	SDL_Point burn_in = _flipclock_clock_get_burn_in_offset(clock);
+	SDL_Point card_burn_in = { -burn_in.x, -burn_in.y };
+
 	if (clock->info_bar != NULL) {
 		flipclock_info_bar_refresh(clock->info_bar, &app->now, false);
-		flipclock_info_bar_draw(clock->info_bar);
+		flipclock_info_bar_draw(clock->info_bar, burn_in);
 	}
 
-	flipclock_card_animate(clock->hour);
-	flipclock_card_animate(clock->minute);
+	flipclock_card_animate(clock->hour, card_burn_in);
+	flipclock_card_animate(clock->minute, card_burn_in);
 	if (app->show_second)
-		flipclock_card_animate(clock->second);
+		flipclock_card_animate(clock->second, card_burn_in);
 
 	SDL_RenderPresent(clock->renderer);
 }

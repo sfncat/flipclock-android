@@ -25,5 +25,8 @@
     <string name="show_lunar_label">显示农历</string>
     <string name="show_lunar_year_label">显示农历年份</string>
     <string name="info_vertical_label">竖排文字</string>
-    <string name="info_bar_restart_hint">提示：更改以上选项后，需重启 FlipClock 才能生效。横屏时显示在主界面顶部，竖屏时显示在左侧。</string>
+    <string name="burn_in_protection_label">防烧屏保护</string>
+    <string name="burn_in_protection_offset_label">防烧屏位移幅度</string>
+    <string name="burn_in_protection_offset_summary">当前偏移量：%1$s%%（相对屏幕短边）</string>
+    <string name="info_bar_restart_hint">提示：更改以上选项后，需重启 FlipClock 才能生效。横屏时显示在主界面顶部，竖屏时显示在左侧。开启防烧屏保护后，信息栏和时间显示会缓慢做小幅位移。</string>
 </resources>

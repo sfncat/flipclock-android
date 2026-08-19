@@ -79,6 +79,8 @@ struct flipclock *flipclock_create(void)
 	app->show_lunar = true;
 	app->show_lunar_year = false;
 	app->info_vertical = true;
+	app->burn_in_protection = false;
+	app->burn_in_protection_offset = 0.015;
 	app->info_scale = 1.0;
 	app->cjk_font_path[0] = '\0';
 	app->font_path[0] = '\0';
@@ -364,6 +366,16 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 		app->show_lunar_year = (!strcmp(value, "true"));
 	} else if (!strcmp(key, "info_vertical")) {
 		app->info_vertical = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "burn_in_protection")) {
+		app->burn_in_protection = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "burn_in_protection_offset")) {
+		// Java layer writes the value as a percentage (0.0-5.0),
+		// convert it to a ratio (0.0-0.05) before clamping.
+		app->burn_in_protection_offset = strtod(value, NULL) / 100.0;
+		if (app->burn_in_protection_offset < 0.0)
+			app->burn_in_protection_offset = 0.0;
+		if (app->burn_in_protection_offset > 0.05)
+			app->burn_in_protection_offset = 0.05;
 	} else if (!strcmp(key, "info_scale")) {
 		app->info_scale = strtod(value, NULL);
 	} else if (!strcmp(key, "cjk_font")) {

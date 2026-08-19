@@ -89,6 +89,8 @@ struct flipclock {
 	bool show_lunar;
 	bool show_lunar_year; /* 农历是否显示干支年，默认关闭。 */
 	bool info_vertical;   /* 竖屏时信息栏采用传统竖排文字，默认开启。 */
+	bool burn_in_protection; /* 防烧屏保护：开启后主界面缓慢微移，默认关闭。 */
+	double burn_in_protection_offset; /* 防烧屏位移幅度（相对屏幕短边的比例）。 */
 	double info_scale;
 	char cjk_font_path[MAX_BUFFER_LENGTH];
 	long long last_touch_time;

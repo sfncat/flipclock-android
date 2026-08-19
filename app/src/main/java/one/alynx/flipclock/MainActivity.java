@@ -61,6 +61,12 @@ public class MainActivity extends SDLActivity {
                     .append(prefs.getBoolean("show_lunar_year", false)).append('\n');
             sb.append("info_vertical=")
                     .append(prefs.getBoolean("info_vertical", true)).append('\n');
+            sb.append("burn_in_protection=")
+                    .append(prefs.getBoolean("burn_in_protection", false))
+                    .append('\n');
+            sb.append("burn_in_protection_offset=")
+                    .append(prefs.getFloat("burn_in_protection_offset", 1.5f))
+                    .append('\n');
             File conf = new File(getFilesDir(), "flipclock.conf");
             FileOutputStream fos = new FileOutputStream(conf);
             fos.write(sb.toString().getBytes(StandardCharsets.UTF_8));

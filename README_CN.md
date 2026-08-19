@@ -1,5 +1,5 @@
-# FlipClock Android
-
+# FlipClock Android V2
+原始项目 https://github.com/AlynxZhou/flipclock-android
 FlipClock 的 Android 封装版本。
 
 [Google Play 商店页面](https://play.google.com/store/apps/details?id=one.alynx.flipclock)
@@ -8,12 +8,15 @@ FlipClock 的 Android 封装版本。
 
 Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。我想为 Android 也做一个类似的版本，于是就有了 FlipClock Android。
 
+本项目在原项目的基础上进行了功能增强，支持更多信息显示，支持自动开机，支持防烧屏，支持最新的android版本
+
 ## 主要功能
 
 - **翻页时钟显示**：全屏显示当前时间，支持横竖屏切换。
 - **默认 24 小时制 + 秒**：应用启动后默认显示 24 小时制，并带秒数。
 - **日期 / 星期 / 农历显示**：默认开启，可在设置页单独开启 / 关闭；横屏显示在主界面顶部，竖屏显示在主界面左侧，字体小于时间。
 - **竖排文字**：竖屏时信息栏默认采用传统竖排排版（汉字直立、数字 / 符号旋转 90°），可在设置页切换回横向堆叠。
+- **防烧屏保护**：可在设置页开启（默认关闭），开启后信息栏和时间显示会缓慢做小幅位移，降低 OLED 烧屏风险。
 - **开机自动启动**：设备重启后自动启动 FlipClock 主界面，并自动点亮屏幕、保持常亮，无需手动操作。
 - **用户授权管理**：所有敏感权限（自启动、悬浮窗、通知、电池优化等）均需要用户在设置中手动开启并同意。
 - **原生设置页**：可设置开机自启动、悬浮窗权限、电池优化等。
@@ -23,17 +26,14 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
   - 三指触摸：显示/隐藏秒数。
   - 旋转手机：切换横屏/竖屏显示（需在系统中开启自动旋转）。
 
-## 适用场景
-
-建议找一台带有 **LCD 屏幕** 的旧手机作为专用时钟。现代非方形屏幕手机多为 OLED，长时间显示固定图案（如翻页时钟）容易导致烧屏。
-
 ## 编译说明
 
 ### 环境要求
 
 - Android SDK
-- Android NDK（已适配 NDK 25）
-- JDK 17（Gradle 8.0 与默认 Java 21 存在兼容问题，建议用 Java 17）
+- Android NDK r28（`28.2.13676358`）
+- JDK 21
+- Android Gradle Plugin 8.3.0
 
 ### 完整编译步骤
 
@@ -46,18 +46,10 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
    cd flipclock-android
    ```
 
-2. 检查字体软链接
-
-   `app/src/main/assets/flipclock.ttf` 是指向 `app/jni/flipclock/dists/flipclock.ttf` 的软链接，已随仓库一起提交。若链接未生效，手动创建：
+2. 使用 Java 21 编译
 
    ```bash
-   ln -s app/jni/flipclock/dists/flipclock.ttf app/src/main/assets/flipclock.ttf
-   ```
-
-3. 使用 Java 17 编译
-
-   ```bash
-   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
    export PATH=$JAVA_HOME/bin:$PATH
    ./gradlew assembleDebug
    ```
@@ -68,15 +60,15 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
    app/build/outputs/apk/debug/app-debug.apk
    ```
 
-4. 使用 Android Studio（可选）
+3. 使用 Android Studio（可选）
 
    也可以直接用 Android Studio 打开项目，等待 Gradle 同步完成后点击 **Build → Make Project** 或 **Run** 进行编译安装。
 
 ### 关键配置说明
 
-- `app/build.gradle`：`minSdkVersion` 19，`targetSdkVersion` 33，`compileSdk` 33。
-- `app/jni/Application.mk`：`APP_PLATFORM=android-19`，ABI 包含 `armeabi-v7a`、`arm64-v8a`、`x86`、`x86_64`。
-- 由于 NDK 25 不再支持 `android-16`，项目已将 `APP_PLATFORM` 和 `minSdkVersion` 调整为 19。
+- `app/build.gradle`：`minSdkVersion` 21，`targetSdkVersion` 33，`compileSdk` 33，`ndkVersion "28.2.13676358"`。
+- `app/jni/Application.mk`：`APP_PLATFORM=android-21`，ABI 包含 `armeabi-v7a`、`arm64-v8a`、`x86`、`x86_64`。
+- 项目使用 NDK r28，以支持 Android 15+ 设备的 16 KB 页面对齐。
 
 ## 使用说明
 
@@ -107,6 +99,23 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
 1. 在系统桌面/应用列表中找到 **FlipClock 设置** 图标。
 2. 在 FlipClock 主界面用 **四指同时点击屏幕**。
 
+### 设置项说明
+
+| 设置项 | 说明 |
+|--------|------|
+| **开机自动启动** | 设备重启后自动启动 FlipClock。开启时会弹出确认框，并引导授予所需权限。 |
+| **悬浮窗权限** | 跳转系统设置授予悬浮窗权限，是开机自启动所需的权限之一。 |
+| **电池优化设置** | 跳转系统设置关闭 FlipClock 的电池优化，提高开机自启动成功率。 |
+| **显示日期** | 在主界面信息栏显示当前日期。 |
+| **显示星期** | 在主界面信息栏显示当前星期。 |
+| **显示农历** | 在主界面信息栏显示农历。 |
+| **显示农历年份** | 在农历信息中同时显示干支年（如丙午年）。 |
+| **竖排文字** | 竖屏时信息栏采用传统竖排排版；关闭后切换为横向堆叠多行。 |
+| **防烧屏保护** | 缓慢小幅移动信息栏和时间显示，降低 OLED 烧屏风险。默认关闭，修改后需重启 FlipClock 生效。 |
+| **防烧屏位移幅度** | 调节位移幅度为屏幕短边的 0%–5%，默认 1.5%。仅在开启「防烧屏保护」时显示。 |
+
+> **提示**：「主界面显示内容」下的选项修改后需重启 FlipClock 才能生效。
+
 ## 权限说明
 
 | 权限 | 用途 |
@@ -121,16 +130,15 @@ Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。�
 ## 已知限制
 
 - Android 10+ 对后台启动 Activity 有严格限制，本项目通过前台服务 + 临时悬浮窗的方式绕过。不同厂商/ROM 行为可能存在差异。
-- 部分国产 ROM（小米、华为、OPPO、vivo 等）可能还需要在系统设置中额外允许应用自启动，否则开机后可能无法正常工作。
+- 部分国产 ROM（小米、华为、OPPO、vivo 等）可能还需要在系统设置中额外允许应用自启动，否则开机后可能无法正常工作，在应用启动管理中关闭自动管理，手动允许自启动，关联启动，后台活动。
 - 如果用户手动强制停止应用，系统会屏蔽 `BOOT_COMPLETED` 广播，直到用户再次手动打开应用。
-- 长时间在 OLED 屏幕上显示固定图案可能导致烧屏，建议使用 LCD 屏幕设备作为专用时钟。
 
 ## 技术说明
 
 - Java shim 直接取自 SDL2 的 `android-project` 目录，未做修改，以便与上游保持一致。
 - SDL2、SDL2_ttf 及 FlipClock 的源码直接提交在 `app/jni/` 下（原为 git submodule，现已改为本地文件）。
 - 原 FlipClock 使用 Meson 构建，Android 上无法直接使用，因此使用 `Android.mk` 进行原生构建。
-- 日期、星期、农历由原生 C 代码渲染（`info_bar.c` / `lunar.c`），农历使用离线算法（1900–2100），无需网络。中文字体为子集化的 Noto Sans CJK SC（`assets/flipclock_cjk.ttf`），遵循 SIL Open Font License。
+- 日期、星期、农历由原生 C 代码渲染（`info_bar.c` / `lunar.c`），农历使用离线算法（1900–2100），无需网络。中文字体为开源的霞鹜漫黑（`assets/flipclock_cjk.ttf`），遵循 SIL Open Font License 1.1 开源协议。
 
 ## 许可证
 
