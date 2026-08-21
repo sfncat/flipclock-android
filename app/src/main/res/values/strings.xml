@@ -29,4 +29,13 @@
     <string name="burn_in_protection_offset_label">防烧屏位移幅度</string>
     <string name="burn_in_protection_offset_summary">当前偏移量：%1$s%%（相对屏幕短边）</string>
     <string name="info_bar_restart_hint">提示：更改以上选项后，需重启 FlipClock 才能生效。横屏时显示在主界面顶部，竖屏时显示在左侧。开启防烧屏保护后，信息栏和时间显示会缓慢做小幅位移。</string>
+    <string name="weather_section_title">天气</string>
+    <string name="show_weather_label">显示天气</string>
+    <string name="weather_location_label">地点</string>
+    <string name="weather_location_hint">输入城市名，如：北京</string>
+    <string name="weather_update_interval_label">刷新间隔</string>
+    <string name="weather_update_interval_summary">每 %1$d 小时刷新一次</string>
+    <string name="weather_display_duration_label">显示时长</string>
+    <string name="weather_display_duration_summary">在防烧屏最远点停留 %1$d 秒</string>
+    <string name="weather_requires_burn_in_hint">提示：天气显示依赖防烧屏保护。仅当两者同时开启时，时钟才会在移动至最远点时显示天气。</string>
 </resources>

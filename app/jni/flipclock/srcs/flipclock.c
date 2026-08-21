@@ -11,6 +11,8 @@
 #include "clock.h"
 #include "card.h"
 
+static struct flipclock *g_app = NULL;
+
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define FPS 60
@@ -87,6 +89,16 @@ struct flipclock *flipclock_create(void)
 	app->conf_path[0] = '\0';
 	app->text_scale = 1.0;
 	app->card_scale = 1.0;
+	app->show_weather = false;
+	app->weather_location[0] = '\0';
+	app->weather_update_interval_hours = 3;
+	app->weather_display_duration_ms = 2000;
+	app->weather_mutex = SDL_CreateMutex();
+	app->weather_location_text[0] = '\0';
+	app->weather_temperature_text[0] = '\0';
+	app->weather_description_text[0] = '\0';
+	app->weather_text_dirty = false;
+	g_app = app;
 #if defined(_WIN32)
 	app->preview = false;
 	app->screensaver = false;
@@ -376,6 +388,26 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 			app->burn_in_protection_offset = 0.0;
 		if (app->burn_in_protection_offset > 0.05)
 			app->burn_in_protection_offset = 0.05;
+	} else if (!strcmp(key, "show_weather")) {
+		app->show_weather = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "weather_location")) {
+		strncpy(app->weather_location, value, MAX_BUFFER_LENGTH);
+		app->weather_location[MAX_BUFFER_LENGTH - 1] = '\0';
+		if (strlen(app->weather_location) == MAX_BUFFER_LENGTH - 1)
+			LOG_ERROR("`weather_location` too long, "
+				  "may fail to load.\n");
+	} else if (!strcmp(key, "weather_update_interval_hours")) {
+		app->weather_update_interval_hours = atoi(value);
+		if (app->weather_update_interval_hours < 1)
+			app->weather_update_interval_hours = 1;
+		if (app->weather_update_interval_hours > 24)
+			app->weather_update_interval_hours = 24;
+	} else if (!strcmp(key, "weather_display_duration_ms")) {
+		app->weather_display_duration_ms = atoi(value);
+		if (app->weather_display_duration_ms < 1000)
+			app->weather_display_duration_ms = 1000;
+		if (app->weather_display_duration_ms > 10000)
+			app->weather_display_duration_ms = 10000;
 	} else if (!strcmp(key, "info_scale")) {
 		app->info_scale = strtod(value, NULL);
 	} else if (!strcmp(key, "cjk_font")) {
@@ -941,10 +973,43 @@ void flipclock_destroy_clocks(struct flipclock *app)
 #endif
 }
 
+struct flipclock *flipclock_get_global_app(void)
+{
+	return g_app;
+}
+
+void flipclock_update_weather(struct flipclock *app, const char location[],
+			      const char temperature[], const char description[])
+{
+	RETURN_IF_FAIL(app != NULL);
+
+	SDL_LockMutex(app->weather_mutex);
+	if (location != NULL) {
+		strncpy(app->weather_location_text, location, MAX_BUFFER_LENGTH);
+		app->weather_location_text[MAX_BUFFER_LENGTH - 1] = '\0';
+	}
+	if (temperature != NULL) {
+		strncpy(app->weather_temperature_text, temperature, 31);
+		app->weather_temperature_text[31] = '\0';
+	}
+	if (description != NULL) {
+		strncpy(app->weather_description_text, description, 31);
+		app->weather_description_text[31] = '\0';
+	}
+	app->weather_text_dirty = true;
+	SDL_UnlockMutex(app->weather_mutex);
+}
+
 void flipclock_destroy(struct flipclock *app)
 {
 	RETURN_IF_FAIL(app != NULL);
 
+	if (app->weather_mutex != NULL) {
+		SDL_DestroyMutex(app->weather_mutex);
+		app->weather_mutex = NULL;
+	}
+	if (g_app == app)
+		g_app = NULL;
 	free(app);
 }
 

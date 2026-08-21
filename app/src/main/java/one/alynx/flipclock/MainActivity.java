@@ -15,6 +15,10 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
+import one.alynx.flipclock.weather.WeatherInfo;
+import one.alynx.flipclock.weather.WeatherListener;
+import one.alynx.flipclock.weather.WeatherManager;
+
 import org.libsdl.app.SDLActivity;
 
 /**
@@ -28,6 +32,7 @@ public class MainActivity extends SDLActivity {
     private static final long SETTINGS_GESTURE_DEBOUNCE_MS = 1000;
 
     private long mLastSettingsOpenTime = 0;
+    private WeatherManager mWeatherManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +44,16 @@ public class MainActivity extends SDLActivity {
         copyAssets();
         super.onCreate(savedInstanceState);
         keepScreenOnAfterBoot();
+        startWeatherManager();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mWeatherManager != null) {
+            mWeatherManager.stop();
+            mWeatherManager = null;
+        }
     }
 
     /**
@@ -66,6 +81,18 @@ public class MainActivity extends SDLActivity {
                     .append('\n');
             sb.append("burn_in_protection_offset=")
                     .append(prefs.getFloat("burn_in_protection_offset", 1.5f))
+                    .append('\n');
+            sb.append("show_weather=")
+                    .append(prefs.getBoolean("show_weather", false))
+                    .append('\n');
+            sb.append("weather_location=")
+                    .append(prefs.getString("weather_location", ""))
+                    .append('\n');
+            sb.append("weather_update_interval_hours=")
+                    .append(prefs.getInt("weather_update_interval_hours", 3))
+                    .append('\n');
+            sb.append("weather_display_duration_ms=")
+                    .append(prefs.getInt("weather_display_duration_ms", 2000))
                     .append('\n');
             File conf = new File(getFilesDir(), "flipclock.conf");
             FileOutputStream fos = new FileOutputStream(conf);
@@ -145,5 +172,43 @@ public class MainActivity extends SDLActivity {
         Intent intent = new Intent(this, SettingsActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(intent);
+    }
+
+    /**
+     * Start the weather manager if the user has enabled weather display and
+     * supplied a location. The native library is loaded by SDLActivity.onCreate(),
+     * so this is called after super.onCreate() to ensure JNI methods are available.
+     */
+    private void startWeatherManager() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean showWeather = prefs.getBoolean("show_weather", false);
+        String location = prefs.getString("weather_location", "").trim();
+        if (!showWeather || location.isEmpty()) {
+            return;
+        }
+
+        int intervalHours = prefs.getInt("weather_update_interval_hours", 3);
+
+        if (mWeatherManager != null) {
+            mWeatherManager.stop();
+        }
+        mWeatherManager = new WeatherManager(this, PREFS_NAME);
+        mWeatherManager.setUpdateIntervalHours(intervalHours);
+        mWeatherManager.setWeatherListener(new WeatherListener() {
+            @Override
+            public void onWeatherUpdated(WeatherInfo info) {
+                String locationName = info.getLocation().getName();
+                String temperature = info.getTemperature() + "°C";
+                String description = info.getDescription();
+                WeatherBridge.nativeUpdateWeather(locationName, temperature, description);
+            }
+
+            @Override
+            public void onError(Throwable error) {
+                Log.w(TAG, "Weather update failed", error);
+            }
+        });
+        mWeatherManager.setLocation(location);
+        mWeatherManager.start();
     }
 }

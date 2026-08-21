@@ -53,6 +53,9 @@
     <!-- if you want to capture audio, uncomment this. -->
     <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
 
+    <!-- Network access for weather updates (also declared by :weather library). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Auto start after boot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

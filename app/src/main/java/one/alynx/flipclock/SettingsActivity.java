@@ -13,6 +13,7 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Switch;
@@ -38,6 +39,14 @@ public class SettingsActivity extends Activity {
             "burn_in_protection_offset";
     private static final float BURN_IN_OFFSET_DEFAULT = 1.5f;
     private static final int BURN_IN_OFFSET_MAX_PROGRESS = 50;
+    private static final String KEY_SHOW_WEATHER = "show_weather";
+    private static final String KEY_WEATHER_LOCATION = "weather_location";
+    private static final String KEY_WEATHER_UPDATE_INTERVAL =
+            "weather_update_interval_hours";
+    private static final String KEY_WEATHER_DISPLAY_DURATION =
+            "weather_display_duration_ms";
+    private static final int WEATHER_UPDATE_INTERVAL_DEFAULT = 3;
+    private static final int WEATHER_DISPLAY_DURATION_DEFAULT = 2000;
     private static final int REQUEST_NOTIFICATION_PERMISSION = 100;
     private static final int REQUEST_BATTERY_OPTIMIZATION = 101;
 
@@ -53,6 +62,15 @@ public class SettingsActivity extends Activity {
     private SeekBar burnInProtectionOffsetSeekBar;
     private Button overlayButton;
     private TextView descriptionText;
+    private Switch showWeatherSwitch;
+    private LinearLayout weatherLocationContainer;
+    private EditText weatherLocationEdit;
+    private LinearLayout weatherUpdateIntervalContainer;
+    private TextView weatherUpdateIntervalSummary;
+    private SeekBar weatherUpdateIntervalSeekBar;
+    private LinearLayout weatherDisplayDurationContainer;
+    private TextView weatherDisplayDurationSummary;
+    private SeekBar weatherDisplayDurationSeekBar;
     private SharedPreferences prefs;
 
     @Override
@@ -78,6 +96,21 @@ public class SettingsActivity extends Activity {
                 findViewById(R.id.burn_in_protection_offset_summary);
         burnInProtectionOffsetSeekBar =
                 findViewById(R.id.burn_in_protection_offset_seekbar);
+        showWeatherSwitch = findViewById(R.id.show_weather_switch);
+        weatherLocationContainer = findViewById(R.id.weather_location_container);
+        weatherLocationEdit = findViewById(R.id.weather_location_edit);
+        weatherUpdateIntervalContainer =
+                findViewById(R.id.weather_update_interval_container);
+        weatherUpdateIntervalSummary =
+                findViewById(R.id.weather_update_interval_summary);
+        weatherUpdateIntervalSeekBar =
+                findViewById(R.id.weather_update_interval_seekbar);
+        weatherDisplayDurationContainer =
+                findViewById(R.id.weather_display_duration_container);
+        weatherDisplayDurationSummary =
+                findViewById(R.id.weather_display_duration_summary);
+        weatherDisplayDurationSeekBar =
+                findViewById(R.id.weather_display_duration_seekbar);
 
         boolean enabled = prefs.getBoolean(KEY_AUTO_START, false);
         autoStartSwitch.setChecked(enabled);
@@ -121,11 +154,26 @@ public class SettingsActivity extends Activity {
                     updateBurnInProtectionOffsetVisibility();
                 });
 
+        setupWeatherSettings();
+
         overlayButton.setOnClickListener(v -> openOverlaySettings());
         batteryButton.setOnClickListener(v -> openBatteryOptimizationSettings());
 
         updateDescription();
         updateOverlayButton();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        saveWeatherLocation();
+    }
+
+    private void saveWeatherLocation() {
+        if (weatherLocationEdit != null) {
+            String location = weatherLocationEdit.getText().toString().trim();
+            prefs.edit().putString(KEY_WEATHER_LOCATION, location).apply();
+        }
     }
 
     @Override
@@ -274,5 +322,96 @@ public class SettingsActivity extends Activity {
         boolean enabled = burnInProtectionSwitch.isChecked();
         burnInProtectionOffsetContainer.setVisibility(
                 enabled ? LinearLayout.VISIBLE : LinearLayout.GONE);
+    }
+
+    private void setupWeatherSettings() {
+        boolean showWeather = prefs.getBoolean(KEY_SHOW_WEATHER, false);
+        showWeatherSwitch.setChecked(showWeather);
+        weatherLocationEdit.setText(prefs.getString(KEY_WEATHER_LOCATION, ""));
+
+        int interval = prefs.getInt(KEY_WEATHER_UPDATE_INTERVAL,
+                WEATHER_UPDATE_INTERVAL_DEFAULT);
+        int intervalProgress = interval - 1;
+        if (intervalProgress < 0)
+            intervalProgress = 0;
+        weatherUpdateIntervalSeekBar.setMax(23);
+        weatherUpdateIntervalSeekBar.setProgress(intervalProgress);
+        updateWeatherUpdateIntervalSummary(interval);
+
+        int durationMs = prefs.getInt(KEY_WEATHER_DISPLAY_DURATION,
+                WEATHER_DISPLAY_DURATION_DEFAULT);
+        int durationProgress = durationMs / 1000 - 1;
+        if (durationProgress < 0)
+            durationProgress = 0;
+        weatherDisplayDurationSeekBar.setMax(9);
+        weatherDisplayDurationSeekBar.setProgress(durationProgress);
+        updateWeatherDisplayDurationSummary(durationMs / 1000);
+
+        updateWeatherSettingsVisibility();
+
+        showWeatherSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> {
+                    prefs.edit().putBoolean(KEY_SHOW_WEATHER, isChecked).apply();
+                    updateWeatherSettingsVisibility();
+                });
+
+        weatherUpdateIntervalSeekBar.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress,
+                                                    boolean fromUser) {
+                        int hours = progress + 1;
+                        prefs.edit().putInt(KEY_WEATHER_UPDATE_INTERVAL, hours)
+                                .apply();
+                        updateWeatherUpdateIntervalSummary(hours);
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                    }
+                });
+
+        weatherDisplayDurationSeekBar.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress,
+                                                    boolean fromUser) {
+                        int seconds = progress + 1;
+                        prefs.edit().putInt(KEY_WEATHER_DISPLAY_DURATION,
+                                        seconds * 1000)
+                                .apply();
+                        updateWeatherDisplayDurationSummary(seconds);
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                    }
+                });
+    }
+
+    private void updateWeatherSettingsVisibility() {
+        boolean enabled = showWeatherSwitch.isChecked();
+        int visibility = enabled ? LinearLayout.VISIBLE : LinearLayout.GONE;
+        weatherLocationContainer.setVisibility(visibility);
+        weatherUpdateIntervalContainer.setVisibility(visibility);
+        weatherDisplayDurationContainer.setVisibility(visibility);
+    }
+
+    private void updateWeatherUpdateIntervalSummary(int hours) {
+        weatherUpdateIntervalSummary.setText(getString(
+                R.string.weather_update_interval_summary, hours));
+    }
+
+    private void updateWeatherDisplayDurationSummary(int seconds) {
+        weatherDisplayDurationSummary.setText(getString(
+                R.string.weather_display_duration_summary, seconds));
     }
 }

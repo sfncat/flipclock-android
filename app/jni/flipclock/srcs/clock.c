@@ -9,6 +9,7 @@
 #include "clock.h"
 #include "card.h"
 #include "info_bar.h"
+#include "weather_overlay.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -32,6 +33,9 @@ static bool _flipclock_clock_has_info_bar(const struct flipclock *app)
  * - 横屏时信息栏在上方、卡片在中间，两者在 Y 轴上相互靠近/远离；
  * - 竖屏时信息栏在左方、卡片在中间，两者在 X 轴上相互靠近/远离。
  * 函数返回信息栏应叠加的偏移，卡片组使用反向偏移。
+ *
+ * 当开启天气显示时，偏移到达最远点后会进入 BURN_IN_HOLD_WEATHER 状态，
+ * 保持最远距离并显示天气 weather_display_duration_ms 毫秒，然后继续移动。
  */
 static SDL_Point _flipclock_clock_get_burn_in_offset(struct flipclock_clock *clock)
 {
@@ -52,7 +56,35 @@ static SDL_Point _flipclock_clock_get_burn_in_offset(struct flipclock_clock *clo
 	Uint32 ticks = SDL_GetTicks();
 	double phase = 2.0 * M_PI * (double)(ticks % BURN_IN_PERIOD_MS) /
 		       (double)BURN_IN_PERIOD_MS;
-	int value = (int)(amplitude * sin(phase));
+	int raw_value = (int)(amplitude * sin(phase));
+	int value = raw_value;
+
+	const struct flipclock *app = clock->app;
+	bool weather_enabled = app->show_weather && clock->weather_overlay != NULL;
+
+	switch (clock->burn_in_state) {
+	case BURN_IN_MOVING:
+		if (weather_enabled &&
+		    abs(raw_value) >= (int)(amplitude * 0.95)) {
+			int peak_sign = raw_value >= 0 ? 1 : -1;
+			if (peak_sign != clock->burn_in_last_peak_sign) {
+				clock->burn_in_state = BURN_IN_HOLD_WEATHER;
+				clock->burn_in_hold_start_ticks = ticks;
+				clock->burn_in_peak_sign = peak_sign;
+				clock->burn_in_last_peak_sign = peak_sign;
+				value = peak_sign * amplitude;
+			}
+		}
+		break;
+	case BURN_IN_HOLD_WEATHER:
+		if (ticks - clock->burn_in_hold_start_ticks >=
+		    (Uint32)app->weather_display_duration_ms) {
+			clock->burn_in_state = BURN_IN_MOVING;
+		} else {
+			value = clock->burn_in_peak_sign * amplitude;
+		}
+		break;
+	}
 
 	if (clock->w >= clock->h)
 		offset.y = value;
@@ -125,6 +157,11 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			flipclock_info_bar_set_rect(clock->info_bar, info_rect,
 						     true);
 		}
+
+		clock->weather_rect.x = 0;
+		clock->weather_rect.y = space_size + (int)(clock->h * INFO_RATIO);
+		clock->weather_rect.w = clock->w;
+		clock->weather_rect.h = hour_rect.y - clock->weather_rect.y;
 	} else {
 		int space_size = clock->h / (cards_length * 8 + spaces_length);
 		/* 信息栏宽度 + 左间距 + 右间距。 */
@@ -171,6 +208,12 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			flipclock_info_bar_set_rect(clock->info_bar, info_rect,
 						     false);
 		}
+
+		clock->weather_rect.x = space_size +
+					(int)(clock->w * INFO_RATIO_PORTRAIT);
+		clock->weather_rect.y = 0;
+		clock->weather_rect.w = hour_rect.x - clock->weather_rect.x;
+		clock->weather_rect.h = clock->h;
 	}
 }
 
@@ -189,6 +232,14 @@ static void _flipclock_clock_create_cards(struct flipclock_clock *clock)
 	if (_flipclock_clock_has_info_bar(app))
 		clock->info_bar =
 			flipclock_info_bar_create(app, clock->renderer);
+	clock->weather_overlay = NULL;
+	if (app->show_weather)
+		clock->weather_overlay =
+			flipclock_weather_overlay_create(app, clock->renderer);
+	clock->burn_in_state = BURN_IN_MOVING;
+	clock->burn_in_hold_start_ticks = 0;
+	clock->burn_in_peak_sign = 0;
+	clock->burn_in_last_peak_sign = 0;
 	_flipclock_clock_update_layout(clock);
 }
 
@@ -488,6 +539,24 @@ void flipclock_clock_animate(struct flipclock_clock *clock)
 	if (app->show_second)
 		flipclock_card_animate(clock->second, card_burn_in);
 
+	if (clock->weather_overlay != NULL) {
+		struct flipclock *mutable_app = clock->app;
+		SDL_LockMutex(mutable_app->weather_mutex);
+		if (mutable_app->weather_text_dirty) {
+			flipclock_weather_overlay_set_text(
+				clock->weather_overlay,
+				mutable_app->weather_temperature_text,
+				mutable_app->weather_description_text);
+			mutable_app->weather_text_dirty = false;
+		}
+		SDL_UnlockMutex(mutable_app->weather_mutex);
+
+		if (clock->burn_in_state == BURN_IN_HOLD_WEATHER) {
+			flipclock_weather_overlay_draw(clock->weather_overlay,
+						       clock->weather_rect);
+		}
+	}
+
 	SDL_RenderPresent(clock->renderer);
 }
 
@@ -501,6 +570,8 @@ void flipclock_clock_destroy(struct flipclock_clock *clock)
 		flipclock_card_destory(clock->second);
 	if (clock->info_bar != NULL)
 		flipclock_info_bar_destroy(clock->info_bar);
+	if (clock->weather_overlay != NULL)
+		flipclock_weather_overlay_destroy(clock->weather_overlay);
 	SDL_DestroyRenderer(clock->renderer);
 	SDL_DestroyWindow(clock->window);
 	free(clock);

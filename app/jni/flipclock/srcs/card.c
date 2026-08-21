@@ -199,7 +199,7 @@ static void _draw_text(SDL_Renderer *renderer, SDL_Texture *target_texture,
 	RETURN_IF_FAIL(text != NULL);
 
 	int len = strlen(text);
-	LOG_DEBUG("Drawing text `%s`.\n", text);
+	// LOG_DEBUG("Drawing text `%s`.\n", text);
 	SDL_SetRenderTarget(renderer, target_texture);
 	for (int i = 0; i < len; ++i) {
 		/**
@@ -278,7 +278,7 @@ static void _flipclock_card_draw(struct flipclock_card *card)
 
 	_flipclock_card_clear_current_texture(card);
 
-	LOG_DEBUG("Drawing card.\n");
+	// LOG_DEBUG("Drawing card.\n");
 	_flipclock_card_draw_rounded_box(card);
 	_flipclock_card_draw_text(card);
 	_flipclock_card_draw_divider(card);

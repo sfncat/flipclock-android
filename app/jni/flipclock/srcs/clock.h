@@ -6,6 +6,12 @@
 #include <SDL.h>
 
 struct flipclock_info_bar;
+struct flipclock_weather_overlay;
+
+enum flipclock_burn_in_state {
+	BURN_IN_MOVING,
+	BURN_IN_HOLD_WEATHER,
+};
 
 struct flipclock_clock {
 	struct flipclock *app;
@@ -16,10 +22,19 @@ struct flipclock_clock {
 	struct flipclock_card *second;
 	/* 日期/星期/农历信息栏，所有选项关闭时为 NULL。 */
 	struct flipclock_info_bar *info_bar;
+	/* 天气覆盖层，天气显示关闭时为 NULL。 */
+	struct flipclock_weather_overlay *weather_overlay;
 	int i;
 	int w;
 	int h;
 	bool waiting;
+	/* 天气覆盖层绘制区域：信息栏与时间卡片之间的空白区。 */
+	SDL_Rect weather_rect;
+	/* 防烧屏状态机，用于在最远点停留并显示天气。 */
+	enum flipclock_burn_in_state burn_in_state;
+	Uint32 burn_in_hold_start_ticks;
+	int burn_in_peak_sign;
+	int burn_in_last_peak_sign;
 };
 
 struct flipclock_clock *flipclock_clock_create(struct flipclock *app, int i);
