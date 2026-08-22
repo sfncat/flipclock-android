@@ -1,4 +1,4 @@
-package one.alynx.flipclock.weather;
+package com.stackof.flipclockv2.weather;
 
 import android.content.Context;
 import android.content.SharedPreferences;

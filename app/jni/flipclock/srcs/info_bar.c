@@ -185,14 +185,21 @@ static void _flipclock_info_bar_open_font(struct flipclock_info_bar *bar,
 	const struct flipclock *app = bar->app;
 	if (px <= 0)
 		return;
-	if (app->cjk_font_path[0] == '\0') {
+
+	const char *font_path = NULL;
+	if (app->info_bar_font_path[0] != '\0') {
+		font_path = app->info_bar_font_path;
+	} else if (app->cjk_font_path[0] != '\0') {
+		font_path = app->cjk_font_path;
+	} else {
 		LOG_ERROR("Info bar: no CJK font path configured.\n");
 		return;
 	}
-	bar->font = TTF_OpenFont(app->cjk_font_path, px);
+
+	bar->font = TTF_OpenFont(font_path, px);
 	if (bar->font == NULL) {
 		LOG_ERROR("Info bar: failed to open CJK font `%s`: %s\n",
-			  app->cjk_font_path, TTF_GetError());
+			  font_path, TTF_GetError());
 		return;
 	}
 	/* 信息栏文字加粗，提升可读性。 */

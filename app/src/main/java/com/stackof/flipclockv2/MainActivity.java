@@ -1,4 +1,4 @@
-package one.alynx.flipclock;
+package com.stackof.flipclockv2;
 
 import android.content.Context;
 import android.content.Intent;
@@ -15,9 +15,9 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-import one.alynx.flipclock.weather.WeatherInfo;
-import one.alynx.flipclock.weather.WeatherListener;
-import one.alynx.flipclock.weather.WeatherManager;
+import com.stackof.flipclockv2.weather.WeatherInfo;
+import com.stackof.flipclockv2.weather.WeatherListener;
+import com.stackof.flipclockv2.weather.WeatherManager;
 
 import org.libsdl.app.SDLActivity;
 
@@ -38,7 +38,7 @@ public class MainActivity extends SDLActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // Must be called before SDLActivity initializes the native layer,
         // so that the C code can read the latest settings from flipclock.conf.
-        writeNativeConf();
+        writeNativeConf(this);
         // The native layer loads the fonts from the internal storage, so copy
         // them out of the APK assets first.
         copyAssets();
@@ -61,10 +61,10 @@ public class MainActivity extends SDLActivity {
      * 内部存储。C 层通过 SDL_AndroidGetInternalStoragePath() 读取该文件，
      * 用于控制主界面上日期/星期/农历的显示。
      */
-    private void writeNativeConf() {
+    static void writeNativeConf(Context context) {
         try {
             SharedPreferences prefs =
-                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             StringBuilder sb = new StringBuilder();
             sb.append("show_date=")
                     .append(prefs.getBoolean("show_date", true)).append('\n');
@@ -77,10 +77,10 @@ public class MainActivity extends SDLActivity {
             sb.append("info_vertical=")
                     .append(prefs.getBoolean("info_vertical", true)).append('\n');
             sb.append("burn_in_protection=")
-                    .append(prefs.getBoolean("burn_in_protection", false))
+                    .append(prefs.getBoolean("burn_in_protection", true))
                     .append('\n');
             sb.append("burn_in_protection_offset=")
-                    .append(prefs.getFloat("burn_in_protection_offset", 1.5f))
+                    .append(prefs.getFloat("burn_in_protection_offset", 5.0f))
                     .append('\n');
             sb.append("show_weather=")
                     .append(prefs.getBoolean("show_weather", false))
@@ -89,12 +89,21 @@ public class MainActivity extends SDLActivity {
                     .append(prefs.getString("weather_location", ""))
                     .append('\n');
             sb.append("weather_update_interval_hours=")
-                    .append(prefs.getInt("weather_update_interval_hours", 3))
+                    .append(prefs.getInt("weather_update_interval_hours", 1))
                     .append('\n');
-            sb.append("weather_display_duration_ms=")
-                    .append(prefs.getInt("weather_display_duration_ms", 2000))
-                    .append('\n');
-            File conf = new File(getFilesDir(), "flipclock.conf");
+            String infoBarFont = prefs.getString("info_bar_font",
+                    "LXGWXiHeiMN.ttf");
+            if (!infoBarFont.isEmpty()) {
+                sb.append("info_bar_font=fonts/")
+                        .append(infoBarFont).append('\n');
+            }
+            String weatherFont = prefs.getString("weather_font",
+                    "LXGWNeoZhiSong.ttf");
+            if (!weatherFont.isEmpty()) {
+                sb.append("weather_font=fonts/")
+                        .append(weatherFont).append('\n');
+            }
+            File conf = new File(context.getFilesDir(), "flipclock.conf");
             FileOutputStream fos = new FileOutputStream(conf);
             fos.write(sb.toString().getBytes(StandardCharsets.UTF_8));
             fos.close();
@@ -111,12 +120,39 @@ public class MainActivity extends SDLActivity {
      */
     private void copyAssets() {
         copyAssetToFiles("flipclock.ttf");
-        copyAssetToFiles("flipclock_cjk.ttf");
+        copyFontAssets();
+    }
+
+    /**
+     * Copy all bundled font files from {@code assets/fonts/} into the app
+     * internal storage so the native layer can load them by filename.
+     */
+    private void copyFontAssets() {
+        String[] fontFiles = {
+            "LXGWMarkerGothic-Regular.ttf",
+            "LXGWNeoXiHei.ttf",
+            "LXGWNeoZhiSong.ttf",
+            "LXGWWenKaiMonoGBLite-Regular.ttf",
+            "LXGWXiHeiMN.ttf",
+            "LXGWZhenKaiGB-Regular.ttf",
+            "SmileySans-Oblique.ttf",
+            "WenYuanSansSC-Heavy.ttf",
+            "XiaolaiMono-Regular.ttf",
+            "Yozai-Regular.ttf"
+        };
+        for (String fontFile : fontFiles) {
+            copyAssetToFiles("fonts/" + fontFile);
+        }
     }
 
     private void copyAssetToFiles(String assetName) {
         try {
             File out = new File(getFilesDir(), assetName);
+            // Ensure parent directories exist (e.g. fonts/).
+            File parent = out.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
             // Always overwrite: a stale copy (e.g. a broken placeholder from an
             // older app version) must not survive an app update.
             try (InputStream in = getAssets().open(assetName);
@@ -201,11 +237,19 @@ public class MainActivity extends SDLActivity {
                 String temperature = info.getTemperature() + "°C";
                 String description = info.getDescription();
                 WeatherBridge.nativeUpdateWeather(locationName, temperature, description);
+                // Clear any stored weather error on success.
+                prefs.edit().remove("weather_error").apply();
             }
 
             @Override
             public void onError(Throwable error) {
                 Log.w(TAG, "Weather update failed", error);
+                // Store error message so SettingsActivity can show it.
+                String msg = error.getMessage();
+                if (msg == null || msg.isEmpty()) {
+                    msg = error.getClass().getSimpleName();
+                }
+                prefs.edit().putString("weather_error", msg).apply();
             }
         });
         mWeatherManager.setLocation(location);

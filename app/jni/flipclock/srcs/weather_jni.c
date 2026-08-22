@@ -6,7 +6,7 @@
 #include "flipclock.h"
 
 JNIEXPORT void JNICALL
-Java_one_alynx_flipclock_WeatherBridge_nativeUpdateWeather(JNIEnv *env,
+Java_com_stackof_flipclockv2_WeatherBridge_nativeUpdateWeather(JNIEnv *env,
 							  jclass clazz,
 							  jstring location,
 							  jstring temperature,

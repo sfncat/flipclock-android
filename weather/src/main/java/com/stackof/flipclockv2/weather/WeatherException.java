@@ -1,4 +1,4 @@
-package one.alynx.flipclock.weather;
+package com.stackof.flipclockv2.weather;
 
 /**
  * Exception thrown when weather data cannot be fetched or parsed.

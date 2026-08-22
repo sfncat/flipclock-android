@@ -221,6 +221,12 @@
             android:max="50" />
     </LinearLayout>
 
+    <Button
+        android:id="@+id/info_bar_font_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/info_bar_font_label" />
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -304,35 +310,29 @@
             android:max="23" />
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/weather_display_duration_container"
+    <Button
+        android:id="@+id/weather_font_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="8dp"
+        android:text="@string/weather_font_label"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/weather_validate_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/weather_validate_location"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/weather_error_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="4dp"
         android:paddingBottom="8dp"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/weather_display_duration_label"
-            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-        <TextView
-            android:id="@+id/weather_display_duration_summary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="4dp"
-            android:textAppearance="?android:attr/textAppearanceSmall" />
-
-        <SeekBar
-            android:id="@+id/weather_display_duration_seekbar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:max="9" />
-    </LinearLayout>
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFD32F2F"
+        android:visibility="gone" />
 
     <TextView
         android:layout_width="match_parent"
@@ -347,6 +347,12 @@
         android:paddingBottom="16dp"
         android:text="@string/info_bar_restart_hint"
         android:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <Button
+        android:id="@+id/restart_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/restart_app_label" />
 
     <TextView
         android:layout_width="match_parent"

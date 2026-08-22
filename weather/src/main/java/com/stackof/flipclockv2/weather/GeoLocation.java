@@ -1,4 +1,4 @@
-package one.alynx.flipclock.weather;
+package com.stackof.flipclockv2.weather;
 
 /**
  * Represents a geographic location matched from a user-supplied name.

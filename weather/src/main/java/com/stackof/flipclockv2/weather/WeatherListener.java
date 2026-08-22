@@ -1,4 +1,4 @@
-package one.alynx.flipclock.weather;
+package com.stackof.flipclockv2.weather;
 
 /**
  * Listener for asynchronous weather updates from {@link WeatherManager}.

@@ -24,7 +24,7 @@ android {
         abortOnError false
     }
 
-    namespace 'one.alynx.flipclock.weather'
+    namespace 'com.stackof.flipclockv2.weather'
 }
 
 dependencies {

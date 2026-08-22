@@ -1,54 +1,59 @@
 # FlipClock Android V2
 
-Original project: https://github.com/AlynxZhou/flipclock-android
+原始项目 https://github.com/AlynxZhou/flipclock-android
+FlipClock 的 Android 封装版本。
 
-The Android wrapper for FlipClock.
+[Google Play 商店页面](https://play.google.com/store/apps/details?id=com.stackof.flipclockv2)
 
-[Google Play Store Page](https://play.google.com/store/apps/details?id=one.alynx.flipclock)
+## 为什么会有这个项目？
 
-## Why this project?
+Fliqlo 是 macOS 上的一款闭源翻页时钟应用，它也有 iOS 版本。我想为 Android 也做一个类似的版本，于是就有了 FlipClock Android。
 
-Fliqlo is a closed-source flip clock app for macOS, and it also has an iOS version. I wanted to make a similar app for Android, so FlipClock Android was born.
+本项目在原项目的基础上进行了功能增强，支持更多信息显示，支持自动开机，支持防烧屏，支持天气显示，支持自定义字体，支持最新的 Android 版本。
 
-This project enhances the original with more information display options, auto-start on boot, burn-in protection, and support for the latest Android versions.
+## 主要功能
 
-## Features
+- **翻页时钟显示**：全屏显示当前时间，支持横竖屏切换。
+- **默认 24 小时制 + 秒**：应用启动后默认显示 24 小时制，并带秒数。
+- **日期 / 星期 / 农历显示**：默认开启，可在设置页单独开启 / 关闭；横屏显示在主界面顶部，竖屏显示在主界面左侧，字体小于时间。
+- **竖排文字**：竖屏时信息栏默认采用传统竖排排版（汉字直立、数字 / 符号旋转 90°），可在设置页切换回横向堆叠。
+- **防烧屏保护**：可在设置页开启（默认开启），开启后信息栏和时间显示会缓慢做小幅位移，降低 OLED 烧屏风险。位移幅度可在 0%–5% 之间调节，默认 5%。
+- **天气显示**：可在设置页开启，在主界面显示当前天气（地点、温度、天气状况）。支持自定义地点输入和地点验证。开启防烧屏时，天气文字会随防烧屏位移幅度左右缓慢移动。天气刷新间隔可在 1–24 小时之间调节，默认 1 小时。
+- **自定义字体**：信息栏和天气可分别使用不同字体，内置 10 款开源中文字体可供选择（霞鹜漫黑、霞鹜新禧黑、霞鹜新智宋、霞鹜文楷 GB Lite、霞鹜禧黑 MN、霞鹜真楷 GB、得意黑、文泉驿等宽微米黑、小赖字体、悠哉字体）。信息栏默认使用霞鹜禧黑 MN，天气默认使用霞鹜新智宋。
+- **开机自动启动**：设备重启后自动启动 FlipClockV2 主界面，并自动点亮屏幕、保持常亮，无需手动操作。
+- **用户授权管理**：所有敏感权限（自启动、悬浮窗、通知、电池优化等）均需要用户在设置中手动开启并同意。
+- **原生设置页**：可设置开机自启动、悬浮窗权限、电池优化、显示内容、防烧屏、天气、字体等。
+- **重启按钮**：设置页底部提供重启按钮，修改设置后一键重启即可生效，无需手动退出应用。
+- **四指手势进入设置**：在主界面用四指同时点击屏幕，可打开设置页。
+- **手势切换**：
+  - 双指触摸 / 双击：切换 12/24 小时制。
+  - 三指触摸：显示/隐藏秒数。
+  - 旋转手机：切换横屏/竖屏显示（需在系统中开启自动旋转）。
 
-- **Flip clock display**: Full-screen display of the current time, supports both landscape and portrait orientations.
-- **24-hour format with seconds by default**: The app shows the 24-hour format with seconds after launching.
-- **Date / weekday / lunar calendar display**: Enabled by default; each can be toggled independently in settings. In landscape they appear at the top of the main screen, in portrait on the left side, with a smaller font than the time.
-- **Vertical text**: In portrait the info bar uses traditional vertical typography by default (upright CJK characters, digits / symbols rotated 90°); can be switched back to stacked horizontal lines in settings.
-- **Burn-in protection**: Can be enabled in settings (off by default). When enabled, the info bar and time display slowly shift by a small amount to reduce OLED burn-in risk.
-- **Auto-start on boot**: After the device reboots, automatically launch the FlipClock main screen, turn on the screen, and keep it awake without manual operation.
-- **User authorization management**: All sensitive permissions (auto-start, overlay, notification, battery optimization, etc.) require the user to manually enable and consent in settings.
-- **Native settings screen**: Configure auto-start on boot, overlay permission, battery optimization, etc.
-- **Four-finger gesture to open settings**: On the main screen, touch the screen with four fingers simultaneously to open settings.
-- **Gesture shortcuts**:
-  - Two-finger touch / double tap: toggle 12/24-hour format.
-  - Three-finger touch: show/hide seconds.
-  - Rotate your phone: switch between landscape and portrait (requires auto-rotate to be enabled).
+## 编译说明
 
-## Building
-
-### Requirements
+### 环境要求
 
 - Android SDK
-- Android NDK r28 (`28.2.13676358`)
+- Android NDK r28（`28.2.13676358`）
 - JDK 21
+- Gradle 8.5
 - Android Gradle Plugin 8.3.0
 
-### Build steps
+> Gradle 和 Android Gradle Plugin 的版本需匹配使用。项目已内置 Gradle Wrapper（`gradle/wrapper/gradle-wrapper.properties`），指定 Gradle 8.5，运行 `./gradlew` 时会自动下载，无需手动安装。Android Gradle Plugin 版本在根目录 `build.gradle` 中声明为 `com.android.tools.build:gradle:8.3.0`。
 
-1. Clone the repo
+### 完整编译步骤
 
-   The SDL2, SDL2_ttf and FlipClock native sources are committed directly under `app/jni/`, so no submodule initialization is needed:
+1. 克隆仓库
+
+   SDL2、SDL2_ttf 及 FlipClock 原生代码已直接提交在仓库内（`app/jni/` 下），无需初始化子模块：
 
    ```bash
-   git clone <repo-url>
+   git clone <仓库地址>
    cd flipclock-android
    ```
 
-2. Build with Java 21
+2. 使用 Java 21 编译
 
    ```bash
    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
@@ -56,93 +61,106 @@ This project enhances the original with more information display options, auto-s
    ./gradlew assembleDebug
    ```
 
-   On success, the APK is at:
+   编译成功后，APK 位于：
 
    ```
    app/build/outputs/apk/debug/app-debug.apk
    ```
 
-3. Android Studio (optional)
+3. 使用 Android Studio（可选）
 
-   You can also open the project with Android Studio, wait for the Gradle sync to finish, then click **Build → Make Project** or **Run** to compile and install.
+   也可以直接用 Android Studio 打开项目，等待 Gradle 同步完成后点击 **Build → Make Project** 或 **Run** 进行编译安装。
 
-### Key configuration
+### 关键配置说明
 
-- `app/build.gradle`: `minSdkVersion` 21, `targetSdkVersion` 33, `compileSdk` 33, `ndkVersion "28.2.13676358"`.
-- `app/jni/Application.mk`: `APP_PLATFORM=android-21`, ABIs include `armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`.
-- The project uses NDK r28 to support 16 KB page size alignment on Android 15+ devices.
+- `app/build.gradle`：`minSdkVersion` 21，`targetSdkVersion` 33，`compileSdk` 33，`ndkVersion "28.2.13676358"`。
+- `app/jni/Application.mk`：`APP_PLATFORM=android-21`，ABI 包含 `armeabi-v7a`、`arm64-v8a`、`x86`、`x86_64`。
+- 项目使用 NDK r28，以支持 Android 15+ 设备的 16 KB 页面对齐。
 
-## Usage
+## 使用说明
 
-### First launch
+### 首次使用
 
-1. Install and open the app. It shows the **24-hour clock with seconds** by default.
-2. After opening the app, touch the screen with **four fingers simultaneously** to open settings.
-3. Enable **Auto-start on boot** in settings, and grant the following permissions as prompted:
-   - **Overlay permission**: Used to create a temporary visible window on Android 10+, allowing the main screen to be started from the background.
-   - **Notification permission** (Android 13+): For the foreground service notification.
-   - **Battery optimization**: It is recommended to disable battery optimization, otherwise the system may kill the boot auto-start service.
-4. (Optional) In the **Main screen display content** section, individually enable / disable **Date / Weekday / Lunar calendar** (all enabled by default). Changes take effect after restarting FlipClock. In landscape these items appear at the top of the main screen, in portrait on the left side, using traditional vertical text by default (turn off **Vertical text** to fall back to stacked horizontal lines).
-5. After authorization is complete, reboot the device and FlipClock will automatically enter the main screen, turn on the screen, and keep it awake.
+1. 安装并打开应用，默认以 **24 小时制 + 秒** 显示。
+2. 打开应用后，用 **四指同时点击屏幕** 打开设置页。
+3. 在设置页中开启 **开机自动启动**，并按提示授予以下权限：
+   - **悬浮窗权限**：用于在 Android 10+ 上创建临时可见窗口，从而允许后台启动主界面。
+   - **通知权限**（Android 13+）：用于前台服务通知。
+   - **电池优化**：建议关闭电池优化，否则系统可能杀死开机自启动服务。
+4. （可选）在设置页的 **主界面显示内容** 中单独开启 / 关闭 **日期 / 星期 / 农历**（默认均开启），更改后需重启 FlipClock 才能生效。横屏时这三项显示在主界面顶部，竖屏时显示在主界面左侧，默认采用传统竖排文字（关闭「竖排文字」可切换回横向堆叠）。
+5. （可选）在设置页的 **天气** 区域开启 **显示天气**，输入地点名称（如「北京」），点击 **验证地点** 确认地点有效。可调节刷新间隔（默认 1 小时）。开启防烧屏时天气文字会左右缓慢移动。
+6. （可选）在设置页的 **信息栏字体** 和 **天气字体** 中为信息栏和天气分别选择不同字体。
+7. 授权完成后，重启设备即可自动进入 FlipClockV2 主界面，并自动点亮屏幕、保持常亮。
+8. 修改设置后，可点击设置页底部的 **重启应用以生效** 按钮一键重启，无需手动退出应用。
 
-### Gestures
+### 手势操作
 
-| Gesture | Action |
-|---------|--------|
-| Two-finger touch / double tap | Toggle 12/24-hour format |
-| Three-finger touch | Show/hide seconds |
-| Four-finger touch simultaneously | Open settings |
-| Rotate the phone | Switch landscape/portrait |
+| 手势 | 功能 |
+|------|------|
+| 双指触摸 / 双击 | 切换 12/24 小时制 |
+| 三指触摸 | 显示/隐藏秒数 |
+| 四指同时点击 | 打开设置页 |
+| 旋转手机 | 切换横屏/竖屏 |
 
-### Opening settings
+### 设置页入口
 
-The settings screen can be opened in two ways:
+设置页可通过两种方式进入：
 
-1. Find the **FlipClock Settings** icon on the launcher / app list.
-2. On the FlipClock main screen, touch the screen with **four fingers simultaneously**.
+1. 在系统桌面/应用列表中找到 **FlipClockV2 设置** 图标。
+2. 在 FlipClock 主界面用 **四指同时点击屏幕**。
 
-### Settings
+### 设置项说明
 
-| Setting | Description |
-|---------|-------------|
-| **Auto-start on boot** | Launch FlipClock automatically after the device reboots. A confirmation dialog will appear when enabling, and required permissions will be requested. |
-| **Overlay permission** | Jump to system settings to grant overlay permission, one of the permissions required for auto-start on boot. |
-| **Battery optimization settings** | Jump to system settings to disable battery optimization for FlipClock, improving the success rate of auto-start on boot. |
-| **Show date** | Show the current date in the info bar on the main screen. |
-| **Show weekday** | Show the current weekday in the info bar on the main screen. |
-| **Show lunar** | Show the lunar calendar in the info bar on the main screen. |
-| **Show lunar year** | Also show the heavenly-stems-and-earthly-branches year (e.g. 丙午年) in the lunar calendar info. |
-| **Vertical text** | In portrait, the info bar uses traditional vertical typography; turn off to switch to stacked horizontal lines. |
-| **Burn-in protection** | Slowly shift the info bar and time display by a small amount to reduce OLED burn-in risk. Off by default; changes take effect after restarting FlipClock. |
-| **Burn-in protection offset** | Adjust the displacement amplitude from 0% to 5% of the screen's shorter side (default 1.5%). Only visible when **Burn-in protection** is enabled. |
+| 设置项 | 说明 |
+|--------|------|
+| **开机自动启动** | 设备重启后自动启动 FlipClock。开启时会弹出确认框，并引导授予所需权限。 |
+| **悬浮窗权限** | 跳转系统设置授予悬浮窗权限，是开机自启动所需的权限之一。 |
+| **电池优化设置** | 跳转系统设置关闭 FlipClock 的电池优化，提高开机自启动成功率。 |
+| **显示日期** | 在主界面信息栏显示当前日期。 |
+| **显示星期** | 在主界面信息栏显示当前星期。 |
+| **显示农历** | 在主界面信息栏显示农历。 |
+| **显示农历年份** | 在农历信息中同时显示干支年（如丙午年）。 |
+| **竖排文字** | 竖屏时信息栏采用传统竖排排版；关闭后切换为横向堆叠多行。 |
+| **防烧屏保护** | 缓慢小幅移动信息栏和时间显示，降低 OLED 烧屏风险。默认开启，修改后需重启 FlipClock 生效。 |
+| **防烧屏位移幅度** | 调节位移幅度为屏幕短边的 0%–5%，默认 5%。仅在开启「防烧屏保护」时显示。 |
+| **显示天气** | 在主界面显示当前天气信息（地点、温度、天气状况）。 |
+| **地点** | 输入天气查询的城市名（如「北京」），输入后可点击「验证地点」确认是否有效。 |
+| **刷新间隔** | 天气刷新间隔，1–24 小时，默认 1 小时。 |
+| **信息栏字体** | 为信息栏选择自定义字体，默认使用霞鹜禧黑 MN。 |
+| **天气字体** | 为天气显示选择自定义字体，默认使用霞鹜新智宋。 |
+| **重启应用以生效** | 一键重启应用，使修改后的设置立即生效。 |
 
-> **Note:** Options under **Main screen display content** only take effect after restarting FlipClock.
+> **提示**：「主界面显示内容」下的选项修改后需重启 FlipClock 才能生效，也可直接点击设置页底部的「重启应用以生效」按钮。
 
-## Permissions
+## 权限说明
 
-| Permission | Purpose |
-|------------|---------|
-| `RECEIVE_BOOT_COMPLETED` | Receive the system boot broadcast to implement auto-start on boot. |
-| `SYSTEM_ALERT_WINDOW` | Create a temporary 1×1 transparent overlay to work around Android 10+'s background activity start restriction. |
-| `WAKE_LOCK` | Wake the device and turn the screen on after boot. |
-| `FOREGROUND_SERVICE` | Run a foreground service to perform the boot auto-start flow. |
-| `POST_NOTIFICATIONS` | Show the foreground service notification on Android 13+. |
-| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Guide the user to disable battery optimization for a higher auto-start success rate. |
+| 权限 | 用途 |
+|------|------|
+| `RECEIVE_BOOT_COMPLETED` | 接收系统开机广播，实现开机自启动。 |
+| `SYSTEM_ALERT_WINDOW` | 创建临时 1×1 透明悬浮窗，用于绕过 Android 10+ 后台启动 Activity 的限制。 |
+| `WAKE_LOCK` | 开机后唤醒设备并点亮屏幕。 |
+| `FOREGROUND_SERVICE` | 启动前台服务以执行开机自启动流程。 |
+| `POST_NOTIFICATIONS` | Android 13+ 显示前台服务通知。 |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | 引导用户关闭电池优化，提高开机自启动成功率。 |
 
-## Known limitations
+## 已知限制
 
-- Android 10+ strictly restricts starting activities from the background; this project works around it with a foreground service plus a temporary overlay. Behavior may vary across vendors/ROMs.
-- Some Chinese ROMs (Xiaomi, Huawei, OPPO, vivo, etc.) may require additionally allowing auto-start in system settings, otherwise it may not work after reboot. In the app launch management, disable automatic management and manually allow auto-start, associated start, and background activity.
-- If the user force-stops the app, the system suppresses the `BOOT_COMPLETED` broadcast until the app is manually opened again.
+- Android 10+ 对后台启动 Activity 有严格限制，本项目通过前台服务 + 临时悬浮窗的方式绕过。不同厂商/ROM 行为可能存在差异。
+- 部分国产 ROM（小米、华为、OPPO、vivo 等）可能还需要在系统设置中额外允许应用自启动，否则开机后可能无法正常工作，在应用启动管理中关闭自动管理，手动允许自启动，关联启动，后台活动。
+- 如果用户手动强制停止应用，系统会屏蔽 `BOOT_COMPLETED` 广播，直到用户再次手动打开应用。
 
-## Technical notes
+## 技术说明
 
-- The Java shim is taken directly from SDL2's `android-project` directory, unmodified to stay consistent with upstream.
-- The SDL2, SDL2_ttf and FlipClock sources are committed directly under `app/jni/` (previously git submodules, now local files).
-- The original FlipClock uses Meson, which cannot be used when building an Android app, so `Android.mk` is used for the native build.
-- The date, weekday and lunar calendar are rendered by native C code (`info_bar.c` / `lunar.c`); the lunar calendar uses an offline algorithm (1900–2100) and needs no network. The CJK font is LXGW Marker Gothic / 霞鹜漫黑 (`assets/flipclock_cjk.ttf`), licensed under the SIL Open Font License 1.1.
+- Java shim 直接取自 SDL2 的 `android-project` 目录，未做修改，以便与上游保持一致。
+- SDL2、SDL2_ttf 及 FlipClock 的源码直接提交在 `app/jni/` 下（原为 git submodule，现已改为本地文件）。
+- 原 FlipClock 使用 Meson 构建，Android 上无法直接使用，因此使用 `Android.mk` 进行原生构建。
+- 日期、星期、农历由原生 C 代码渲染（`info_bar.c` / `lunar.c`），农历使用离线算法（1900–2100），无需网络。
+- 应用内置 10 款开源中文字体（位于 `assets/fonts/`），信息栏和天气可分别使用不同字体，遵循 SIL Open Font License 1.1 开源协议。
+- 版本号统一在 `gradle.properties` 中管理（`APP_VERSION_CODE` / `APP_VERSION_NAME`），`app/build.gradle` 从中读取。
+- 应用包名为 `com.stackof.flipclockv2`，weather 模块包名为 `com.stackof.flipclockv2.weather`。
 
-## LICENSE
+## 许可证
 
-- Code taken directly from SDL2 and SDL2_ttf keeps their original licenses.
-- Code modified/added by myself is licensed under [Apache-2.0](LICENSE).
+- 直接取自 SDL2 和 SDL2_ttf 的代码保持其原有许可证。
+- 本人修改/新增的代码使用 [Apache-2.0](LICENSE)。
+

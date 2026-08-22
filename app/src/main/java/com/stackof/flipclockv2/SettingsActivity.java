@@ -1,4 +1,4 @@
-package one.alynx.flipclock;
+package com.stackof.flipclockv2;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -9,6 +9,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.widget.Button;
@@ -19,8 +21,17 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import com.stackof.flipclockv2.weather.GeoLocation;
+import com.stackof.flipclockv2.weather.WeatherInfo;
+import com.stackof.flipclockv2.weather.WeatherListener;
+import com.stackof.flipclockv2.weather.WeatherManager;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
- * Settings activity for FlipClock.
+ * Settings activity for FlipClockV2.
  *
  * Provides a user-controlled switch to enable/disable auto start after boot.
  * The first time the user enables the feature, a confirmation dialog is
@@ -37,18 +48,46 @@ public class SettingsActivity extends Activity {
     private static final String KEY_BURN_IN_PROTECTION = "burn_in_protection";
     private static final String KEY_BURN_IN_PROTECTION_OFFSET =
             "burn_in_protection_offset";
-    private static final float BURN_IN_OFFSET_DEFAULT = 1.5f;
+    private static final float BURN_IN_OFFSET_DEFAULT = 5.0f;
     private static final int BURN_IN_OFFSET_MAX_PROGRESS = 50;
     private static final String KEY_SHOW_WEATHER = "show_weather";
     private static final String KEY_WEATHER_LOCATION = "weather_location";
     private static final String KEY_WEATHER_UPDATE_INTERVAL =
             "weather_update_interval_hours";
-    private static final String KEY_WEATHER_DISPLAY_DURATION =
-            "weather_display_duration_ms";
-    private static final int WEATHER_UPDATE_INTERVAL_DEFAULT = 3;
-    private static final int WEATHER_DISPLAY_DURATION_DEFAULT = 2000;
+    private static final int WEATHER_UPDATE_INTERVAL_DEFAULT = 1;
     private static final int REQUEST_NOTIFICATION_PERMISSION = 100;
     private static final int REQUEST_BATTERY_OPTIMIZATION = 101;
+
+    private static final String KEY_INFO_BAR_FONT = "info_bar_font";
+    private static final String KEY_WEATHER_FONT = "weather_font";
+
+    private static final String DEFAULT_INFO_BAR_FONT = "LXGWXiHeiMN.ttf";
+    private static final String DEFAULT_WEATHER_FONT = "LXGWNeoZhiSong.ttf";
+
+    private static final String[] FONT_FILES = {
+        "LXGWMarkerGothic-Regular.ttf",
+        "LXGWNeoXiHei.ttf",
+        "LXGWNeoZhiSong.ttf",
+        "LXGWWenKaiMonoGBLite-Regular.ttf",
+        "LXGWXiHeiMN.ttf",
+        "LXGWZhenKaiGB-Regular.ttf",
+        "SmileySans-Oblique.ttf",
+        "WenYuanSansSC-Heavy.ttf",
+        "XiaolaiMono-Regular.ttf",
+        "Yozai-Regular.ttf"
+    };
+    private static final String[] FONT_DISPLAY_NAMES = {
+        "霞鹜漫黑",
+        "霞鹜新禧黑",
+        "霞鹜新智宋",
+        "霞鹜文楷 GB Lite",
+        "霞鹜禧黑 MN",
+        "霞鹜真楷 GB",
+        "得意黑",
+        "文泉驿等宽微米黑",
+        "小赖字体",
+        "悠哉字体"
+    };
 
     private Switch autoStartSwitch;
     private Switch showDateSwitch;
@@ -68,9 +107,11 @@ public class SettingsActivity extends Activity {
     private LinearLayout weatherUpdateIntervalContainer;
     private TextView weatherUpdateIntervalSummary;
     private SeekBar weatherUpdateIntervalSeekBar;
-    private LinearLayout weatherDisplayDurationContainer;
-    private TextView weatherDisplayDurationSummary;
-    private SeekBar weatherDisplayDurationSeekBar;
+    private Button infoBarFontButton;
+    private Button weatherFontButton;
+    private Button weatherValidateButton;
+    private Button restartButton;
+    private TextView weatherErrorText;
     private SharedPreferences prefs;
 
     @Override
@@ -105,12 +146,11 @@ public class SettingsActivity extends Activity {
                 findViewById(R.id.weather_update_interval_summary);
         weatherUpdateIntervalSeekBar =
                 findViewById(R.id.weather_update_interval_seekbar);
-        weatherDisplayDurationContainer =
-                findViewById(R.id.weather_display_duration_container);
-        weatherDisplayDurationSummary =
-                findViewById(R.id.weather_display_duration_summary);
-        weatherDisplayDurationSeekBar =
-                findViewById(R.id.weather_display_duration_seekbar);
+        infoBarFontButton = findViewById(R.id.info_bar_font_button);
+        weatherFontButton = findViewById(R.id.weather_font_button);
+        weatherValidateButton = findViewById(R.id.weather_validate_button);
+        restartButton = findViewById(R.id.restart_button);
+        weatherErrorText = findViewById(R.id.weather_error_text);
 
         boolean enabled = prefs.getBoolean(KEY_AUTO_START, false);
         autoStartSwitch.setChecked(enabled);
@@ -135,7 +175,7 @@ public class SettingsActivity extends Activity {
         infoVerticalSwitch.setChecked(
                 prefs.getBoolean(KEY_INFO_VERTICAL, true));
         burnInProtectionSwitch.setChecked(
-                prefs.getBoolean(KEY_BURN_IN_PROTECTION, false));
+                prefs.getBoolean(KEY_BURN_IN_PROTECTION, true));
         setupBurnInProtectionOffset();
         showDateSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
@@ -155,9 +195,11 @@ public class SettingsActivity extends Activity {
                 });
 
         setupWeatherSettings();
+        setupFontSettings();
 
         overlayButton.setOnClickListener(v -> openOverlaySettings());
         batteryButton.setOnClickListener(v -> openBatteryOptimizationSettings());
+        restartButton.setOnClickListener(v -> restartApp());
 
         updateDescription();
         updateOverlayButton();
@@ -172,7 +214,9 @@ public class SettingsActivity extends Activity {
     private void saveWeatherLocation() {
         if (weatherLocationEdit != null) {
             String location = weatherLocationEdit.getText().toString().trim();
-            prefs.edit().putString(KEY_WEATHER_LOCATION, location).apply();
+            // Use commit() (synchronous) to guarantee the write completes
+            // before the process can be killed (e.g. by restartApp).
+            prefs.edit().putString(KEY_WEATHER_LOCATION, location).commit();
         }
     }
 
@@ -180,6 +224,7 @@ public class SettingsActivity extends Activity {
     protected void onResume() {
         super.onResume();
         updateOverlayButton();
+        updateWeatherError();
     }
 
     private void showEnableConfirmationDialog() {
@@ -338,15 +383,6 @@ public class SettingsActivity extends Activity {
         weatherUpdateIntervalSeekBar.setProgress(intervalProgress);
         updateWeatherUpdateIntervalSummary(interval);
 
-        int durationMs = prefs.getInt(KEY_WEATHER_DISPLAY_DURATION,
-                WEATHER_DISPLAY_DURATION_DEFAULT);
-        int durationProgress = durationMs / 1000 - 1;
-        if (durationProgress < 0)
-            durationProgress = 0;
-        weatherDisplayDurationSeekBar.setMax(9);
-        weatherDisplayDurationSeekBar.setProgress(durationProgress);
-        updateWeatherDisplayDurationSummary(durationMs / 1000);
-
         updateWeatherSettingsVisibility();
 
         showWeatherSwitch.setOnCheckedChangeListener(
@@ -375,26 +411,7 @@ public class SettingsActivity extends Activity {
                     }
                 });
 
-        weatherDisplayDurationSeekBar.setOnSeekBarChangeListener(
-                new SeekBar.OnSeekBarChangeListener() {
-                    @Override
-                    public void onProgressChanged(SeekBar seekBar, int progress,
-                                                    boolean fromUser) {
-                        int seconds = progress + 1;
-                        prefs.edit().putInt(KEY_WEATHER_DISPLAY_DURATION,
-                                        seconds * 1000)
-                                .apply();
-                        updateWeatherDisplayDurationSummary(seconds);
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(SeekBar seekBar) {
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(SeekBar seekBar) {
-                    }
-                });
+        weatherValidateButton.setOnClickListener(v -> validateLocation());
     }
 
     private void updateWeatherSettingsVisibility() {
@@ -402,7 +419,8 @@ public class SettingsActivity extends Activity {
         int visibility = enabled ? LinearLayout.VISIBLE : LinearLayout.GONE;
         weatherLocationContainer.setVisibility(visibility);
         weatherUpdateIntervalContainer.setVisibility(visibility);
-        weatherDisplayDurationContainer.setVisibility(visibility);
+        weatherFontButton.setVisibility(visibility);
+        weatherValidateButton.setVisibility(visibility);
     }
 
     private void updateWeatherUpdateIntervalSummary(int hours) {
@@ -410,8 +428,196 @@ public class SettingsActivity extends Activity {
                 R.string.weather_update_interval_summary, hours));
     }
 
-    private void updateWeatherDisplayDurationSummary(int seconds) {
-        weatherDisplayDurationSummary.setText(getString(
-                R.string.weather_display_duration_summary, seconds));
+    /**
+     * Check SharedPreferences for a stored weather error from MainActivity
+     * and display it. Also show success status if weather data is available.
+     */
+    private void updateWeatherError() {
+        String error = prefs.getString("weather_error", null);
+        String location = prefs.getString(KEY_WEATHER_LOCATION, "").trim();
+        if (error != null && !error.isEmpty()) {
+            String displayMsg;
+            if (error.contains("No locations found")) {
+                displayMsg = getString(R.string.weather_error_not_found, location);
+            } else if (error.contains("empty") || error.contains("No location")) {
+                displayMsg = getString(R.string.weather_error_not_found, location);
+            } else {
+                displayMsg = getString(R.string.weather_error_network) +
+                        "\n(" + error + ")";
+            }
+            weatherErrorText.setText(displayMsg);
+            weatherErrorText.setVisibility(TextView.VISIBLE);
+        } else {
+            weatherErrorText.setVisibility(TextView.GONE);
+        }
+    }
+
+    /**
+     * Validate the current location input by performing a test geocode
+     * on a background thread. Shows the result in weatherErrorText.
+     */
+    private void validateLocation() {
+        final String location = weatherLocationEdit.getText().toString().trim();
+        if (location.isEmpty()) {
+            weatherErrorText.setText(getString(R.string.weather_error_not_found, ""));
+            weatherErrorText.setVisibility(TextView.VISIBLE);
+            return;
+        }
+
+        weatherValidateButton.setEnabled(false);
+        weatherValidateButton.setText(R.string.weather_validating);
+        weatherErrorText.setVisibility(TextView.GONE);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final String[] resultMsg = new String[1];
+                final boolean[] success = new boolean[1];
+                try {
+                    // Use a separate prefs name to avoid polluting the main cache.
+                    WeatherManager testMgr = new WeatherManager(
+                            getApplicationContext(), "flipclock_validate");
+                    final CountDownLatch latch = new CountDownLatch(1);
+                    final AtomicReference<String> errorMsg = new AtomicReference<>();
+                    final AtomicReference<String> locationName = new AtomicReference<>();
+
+                    testMgr.setWeatherListener(new WeatherListener() {
+                        @Override
+                        public void onWeatherUpdated(WeatherInfo info) {
+                            locationName.set(info.getLocation().getName());
+                            latch.countDown();
+                        }
+                        @Override
+                        public void onError(Throwable error) {
+                            errorMsg.set(error.getMessage());
+                            latch.countDown();
+                        }
+                    });
+                    testMgr.setLocation(location);
+                    latch.await(15, TimeUnit.SECONDS);
+                    testMgr.stop();
+
+                    if (locationName.get() != null) {
+                        success[0] = true;
+                        resultMsg[0] = getString(R.string.weather_ok,
+                                locationName.get());
+                    } else {
+                        success[0] = false;
+                        String err = errorMsg.get();
+                        if (err != null && err.contains("No locations found")) {
+                            resultMsg[0] = getString(
+                                    R.string.weather_error_not_found, location);
+                        } else {
+                            resultMsg[0] = getString(R.string.weather_error_network);
+                        }
+                    }
+                } catch (Exception e) {
+                    success[0] = false;
+                    resultMsg[0] = getString(R.string.weather_error_network);
+                }
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        weatherValidateButton.setEnabled(true);
+                        weatherValidateButton.setText(
+                                R.string.weather_validate_location);
+                        weatherErrorText.setText(resultMsg[0]);
+                        weatherErrorText.setVisibility(TextView.VISIBLE);
+                        if (success[0]) {
+                            // Clear stored error on successful validation.
+                            prefs.edit().remove("weather_error").apply();
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void setupFontSettings() {
+        updateFontButton(infoBarFontButton,
+                prefs.getString(KEY_INFO_BAR_FONT, DEFAULT_INFO_BAR_FONT),
+                R.string.info_bar_font_label);
+        updateFontButton(weatherFontButton,
+                prefs.getString(KEY_WEATHER_FONT, DEFAULT_WEATHER_FONT),
+                R.string.weather_font_label);
+
+        infoBarFontButton.setOnClickListener(v ->
+                showFontPickerDialog(KEY_INFO_BAR_FONT,
+                        R.string.info_bar_font_label, infoBarFontButton));
+        weatherFontButton.setOnClickListener(v ->
+                showFontPickerDialog(KEY_WEATHER_FONT,
+                        R.string.weather_font_label, weatherFontButton));
+    }
+
+    private void updateFontButton(Button button, String currentFont,
+                                  int labelResId) {
+        if (currentFont.isEmpty()) {
+            button.setText(getString(labelResId) + "：" +
+                    getString(R.string.font_default));
+        } else {
+            String displayName = getFontDisplayName(currentFont);
+            button.setText(getString(labelResId) + "：" + displayName);
+        }
+    }
+
+    private String getFontDisplayName(String fontFile) {
+        for (int i = 0; i < FONT_FILES.length; i++) {
+            if (FONT_FILES[i].equals(fontFile)) {
+                return FONT_DISPLAY_NAMES[i];
+            }
+        }
+        return fontFile;
+    }
+
+    private void showFontPickerDialog(final String prefKey, final int labelResId,
+                                     final Button button) {
+        String currentFont = prefs.getString(prefKey, "");
+        int checkedItem = -1;
+        for (int i = 0; i < FONT_FILES.length; i++) {
+            if (FONT_FILES[i].equals(currentFont)) {
+                checkedItem = i;
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(labelResId))
+                .setSingleChoiceItems(FONT_DISPLAY_NAMES, checkedItem,
+                        (dialog, which) -> {
+                            String selectedFont = FONT_FILES[which];
+                            prefs.edit().putString(prefKey, selectedFont)
+                                    .apply();
+                            updateFontButton(button, selectedFont,
+                                    labelResId);
+                            dialog.dismiss();
+                        })
+                .setNeutralButton(R.string.font_default, (dialog, which) -> {
+                    String defaultFont = prefKey.equals(KEY_INFO_BAR_FONT)
+                            ? DEFAULT_INFO_BAR_FONT : DEFAULT_WEATHER_FONT;
+                    prefs.edit().putString(prefKey, defaultFont).apply();
+                    updateFontButton(button, defaultFont, labelResId);
+                })
+                .setNegativeButton(R.string.auto_start_dialog_cancel, null)
+                .show();
+    }
+
+    private void restartApp() {
+        // Synchronously save pending weather location.
+        saveWeatherLocation();
+        // Re-generate flipclock.conf so the native layer picks up all
+        // current settings on restart.
+        MainActivity.writeNativeConf(this);
+        Intent intent = getPackageManager().getLaunchIntentForPackage(
+                getPackageName());
+        if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
+        finish();
+        // Force the process to restart so the native SDL layer
+        // re-reads flipclock.conf with the new settings.
+        Runtime.getRuntime().exit(0);
     }
 }

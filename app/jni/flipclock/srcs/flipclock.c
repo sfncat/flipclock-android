@@ -81,18 +81,19 @@ struct flipclock *flipclock_create(void)
 	app->show_lunar = true;
 	app->show_lunar_year = false;
 	app->info_vertical = true;
-	app->burn_in_protection = false;
-	app->burn_in_protection_offset = 0.015;
+	app->burn_in_protection = true;
+	app->burn_in_protection_offset = 0.05;
 	app->info_scale = 1.0;
 	app->cjk_font_path[0] = '\0';
+	app->info_bar_font_path[0] = '\0';
+	app->weather_font_path[0] = '\0';
 	app->font_path[0] = '\0';
 	app->conf_path[0] = '\0';
 	app->text_scale = 1.0;
 	app->card_scale = 1.0;
 	app->show_weather = false;
 	app->weather_location[0] = '\0';
-	app->weather_update_interval_hours = 3;
-	app->weather_display_duration_ms = 2000;
+	app->weather_update_interval_hours = 1;
 	app->weather_mutex = SDL_CreateMutex();
 	app->weather_location_text[0] = '\0';
 	app->weather_temperature_text[0] = '\0';
@@ -110,7 +111,9 @@ struct flipclock *flipclock_create(void)
 	snprintf(app->font_path, MAX_BUFFER_LENGTH, "%s\\flipclock.ttf",
 		 app->program_dir);
 	snprintf(app->cjk_font_path, MAX_BUFFER_LENGTH,
-		 "%s\\flipclock_cjk.ttf", app->program_dir);
+		 "%s\\fonts\\LXGWXiHeiMN.ttf", app->program_dir);
+	snprintf(app->weather_font_path, MAX_BUFFER_LENGTH,
+		 "%s\\fonts\\LXGWNeoZhiSong.ttf", app->program_dir);
 #elif defined(__ANDROID__)
 	// The font files are copied from `app/src/main/assets` to the app
 	// internal storage by the Java layer (same as flipclock.conf), so
@@ -121,20 +124,27 @@ struct flipclock *flipclock_create(void)
 		snprintf(app->font_path, MAX_BUFFER_LENGTH, "%s/flipclock.ttf",
 			 storage);
 		snprintf(app->cjk_font_path, MAX_BUFFER_LENGTH,
-			 "%s/flipclock_cjk.ttf", storage);
+			 "%s/fonts/LXGWXiHeiMN.ttf", storage);
+		snprintf(app->weather_font_path, MAX_BUFFER_LENGTH,
+			 "%s/fonts/LXGWNeoZhiSong.ttf", storage);
 	} else {
 		strncpy(app->font_path, "flipclock.ttf", MAX_BUFFER_LENGTH);
-		strncpy(app->cjk_font_path, "flipclock_cjk.ttf",
+		strncpy(app->cjk_font_path, "fonts/LXGWXiHeiMN.ttf",
+			MAX_BUFFER_LENGTH);
+		strncpy(app->weather_font_path, "fonts/LXGWNeoZhiSong.ttf",
 			MAX_BUFFER_LENGTH);
 	}
 #elif defined(__linux__) && !defined(__ANDROID__)
 	strncpy(app->font_path, PACKAGE_DATADIR "/fonts/flipclock.ttf",
 		MAX_BUFFER_LENGTH);
-	strncpy(app->cjk_font_path, PACKAGE_DATADIR "/fonts/flipclock_cjk.ttf",
+	strncpy(app->cjk_font_path, PACKAGE_DATADIR "/fonts/LXGWXiHeiMN.ttf",
+		MAX_BUFFER_LENGTH);
+	strncpy(app->weather_font_path, PACKAGE_DATADIR "/fonts/LXGWNeoZhiSong.ttf",
 		MAX_BUFFER_LENGTH);
 #endif
 	app->font_path[MAX_BUFFER_LENGTH - 1] = '\0';
 	app->cjk_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
+	app->weather_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
 	if (strlen(app->font_path) == MAX_BUFFER_LENGTH - 1)
 		LOG_ERROR("`font_path` too long, may fail to load.\n");
 	time_t raw_time = time(NULL);
@@ -402,12 +412,6 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 			app->weather_update_interval_hours = 1;
 		if (app->weather_update_interval_hours > 24)
 			app->weather_update_interval_hours = 24;
-	} else if (!strcmp(key, "weather_display_duration_ms")) {
-		app->weather_display_duration_ms = atoi(value);
-		if (app->weather_display_duration_ms < 1000)
-			app->weather_display_duration_ms = 1000;
-		if (app->weather_display_duration_ms > 10000)
-			app->weather_display_duration_ms = 10000;
 	} else if (!strcmp(key, "info_scale")) {
 		app->info_scale = strtod(value, NULL);
 	} else if (!strcmp(key, "cjk_font")) {
@@ -415,6 +419,18 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 		app->cjk_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
 		if (strlen(app->cjk_font_path) == MAX_BUFFER_LENGTH - 1)
 			LOG_ERROR("`cjk_font_path` too long, "
+				  "may fail to load.\n");
+	} else if (!strcmp(key, "info_bar_font")) {
+		strncpy(app->info_bar_font_path, value, MAX_BUFFER_LENGTH);
+		app->info_bar_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
+		if (strlen(app->info_bar_font_path) == MAX_BUFFER_LENGTH - 1)
+			LOG_ERROR("`info_bar_font_path` too long, "
+				  "may fail to load.\n");
+	} else if (!strcmp(key, "weather_font")) {
+		strncpy(app->weather_font_path, value, MAX_BUFFER_LENGTH);
+		app->weather_font_path[MAX_BUFFER_LENGTH - 1] = '\0';
+		if (strlen(app->weather_font_path) == MAX_BUFFER_LENGTH - 1)
+			LOG_ERROR("`weather_font_path` too long, "
 				  "may fail to load.\n");
 	} else if (!strcmp(key, "font")) {
 		strncpy(app->font_path, value, MAX_BUFFER_LENGTH);
@@ -510,6 +526,33 @@ void flipclock_load_conf(struct flipclock *app)
 		_flipclock_apply_key_value(app, key, value);
 	}
 	fclose(conf);
+
+#if defined(__ANDROID__)
+	/*
+	 * Android: font paths from config are relative filenames like
+	 * "fonts/SmileySans-Oblique.ttf". Prepend the internal storage
+	 * path to form an absolute path that TTF_OpenFont() can open.
+	 */
+	const char *storage = SDL_AndroidGetInternalStoragePath();
+	if (storage != NULL && storage[0] != '\0') {
+		if (app->info_bar_font_path[0] != '\0' &&
+		    app->info_bar_font_path[0] != '/') {
+			char tmp[MAX_BUFFER_LENGTH];
+			strncpy(tmp, app->info_bar_font_path,
+				MAX_BUFFER_LENGTH);
+			snprintf(app->info_bar_font_path, MAX_BUFFER_LENGTH,
+				 "%s/%s", storage, tmp);
+		}
+		if (app->weather_font_path[0] != '\0' &&
+		    app->weather_font_path[0] != '/') {
+			char tmp[MAX_BUFFER_LENGTH];
+			strncpy(tmp, app->weather_font_path,
+				MAX_BUFFER_LENGTH);
+			snprintf(app->weather_font_path, MAX_BUFFER_LENGTH,
+				 "%s/%s", storage, tmp);
+		}
+	}
+#endif
 }
 
 static void _flipclock_create_clocks(struct flipclock *app)

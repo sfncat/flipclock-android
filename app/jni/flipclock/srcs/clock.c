@@ -34,8 +34,8 @@ static bool _flipclock_clock_has_info_bar(const struct flipclock *app)
  * - 竖屏时信息栏在左方、卡片在中间，两者在 X 轴上相互靠近/远离。
  * 函数返回信息栏应叠加的偏移，卡片组使用反向偏移。
  *
- * 当开启天气显示时，偏移到达最远点后会进入 BURN_IN_HOLD_WEATHER 状态，
- * 保持最远距离并显示天气 weather_display_duration_ms 毫秒，然后继续移动。
+ * 天气始终固定位置显示；开启防烧屏时，天气额外做水平微移，
+ * 幅度由 burn_in_protection_offset 控制。
  */
 static SDL_Point _flipclock_clock_get_burn_in_offset(struct flipclock_clock *clock)
 {
@@ -56,35 +56,7 @@ static SDL_Point _flipclock_clock_get_burn_in_offset(struct flipclock_clock *clo
 	Uint32 ticks = SDL_GetTicks();
 	double phase = 2.0 * M_PI * (double)(ticks % BURN_IN_PERIOD_MS) /
 		       (double)BURN_IN_PERIOD_MS;
-	int raw_value = (int)(amplitude * sin(phase));
-	int value = raw_value;
-
-	const struct flipclock *app = clock->app;
-	bool weather_enabled = app->show_weather && clock->weather_overlay != NULL;
-
-	switch (clock->burn_in_state) {
-	case BURN_IN_MOVING:
-		if (weather_enabled &&
-		    abs(raw_value) >= (int)(amplitude * 0.95)) {
-			int peak_sign = raw_value >= 0 ? 1 : -1;
-			if (peak_sign != clock->burn_in_last_peak_sign) {
-				clock->burn_in_state = BURN_IN_HOLD_WEATHER;
-				clock->burn_in_hold_start_ticks = ticks;
-				clock->burn_in_peak_sign = peak_sign;
-				clock->burn_in_last_peak_sign = peak_sign;
-				value = peak_sign * amplitude;
-			}
-		}
-		break;
-	case BURN_IN_HOLD_WEATHER:
-		if (ticks - clock->burn_in_hold_start_ticks >=
-		    (Uint32)app->weather_display_duration_ms) {
-			clock->burn_in_state = BURN_IN_MOVING;
-		} else {
-			value = clock->burn_in_peak_sign * amplitude;
-		}
-		break;
-	}
+	int value = (int)(amplitude * sin(phase));
 
 	if (clock->w >= clock->h)
 		offset.y = value;
@@ -551,10 +523,28 @@ void flipclock_clock_animate(struct flipclock_clock *clock)
 		}
 		SDL_UnlockMutex(mutable_app->weather_mutex);
 
-		if (clock->burn_in_state == BURN_IN_HOLD_WEATHER) {
-			flipclock_weather_overlay_draw(clock->weather_overlay,
-						       clock->weather_rect);
+		/*
+		 * 天气始终固定显示。开启防烧屏时，天气额外做水平微移，
+		 * 幅度与防烧屏一致（屏幕短边 × burn_in_protection_offset），
+		 * 即先向左移动该幅度，回到中间，再向右移动该幅度。
+		 */
+		SDL_Rect weather_draw_rect = clock->weather_rect;
+		if (mutable_app->burn_in_protection) {
+			int min_side = clock->w < clock->h ? clock->w : clock->h;
+			int w_amplitude = (int)(min_side *
+						mutable_app->burn_in_protection_offset);
+			if (w_amplitude < 1)
+				w_amplitude = 1;
+			Uint32 ticks = SDL_GetTicks();
+			double phase = 2.0 * M_PI *
+				       (double)(ticks % BURN_IN_PERIOD_MS) /
+				       (double)BURN_IN_PERIOD_MS;
+			int w_offset = (int)(w_amplitude * sin(phase));
+			weather_draw_rect.x += w_offset;
 		}
+
+		flipclock_weather_overlay_draw(clock->weather_overlay,
+					       weather_draw_rect);
 	}
 
 	SDL_RenderPresent(clock->renderer);

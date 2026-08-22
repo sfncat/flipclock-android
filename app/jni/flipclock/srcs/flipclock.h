@@ -94,11 +94,13 @@ struct flipclock {
 	double burn_in_protection_offset; /* 防烧屏位移幅度（相对屏幕短边的比例）。 */
 	double info_scale;
 	char cjk_font_path[MAX_BUFFER_LENGTH];
+	/* 信息栏和天气可分别使用不同字体，为空时回退到 cjk_font_path。 */
+	char info_bar_font_path[MAX_BUFFER_LENGTH];
+	char weather_font_path[MAX_BUFFER_LENGTH];
 	/* 天气显示配置与数据，由 Java 层通过 JNI 写入。 */
 	bool show_weather;
 	char weather_location[MAX_BUFFER_LENGTH];
 	int weather_update_interval_hours;
-	int weather_display_duration_ms;
 	SDL_mutex *weather_mutex;
 	char weather_location_text[MAX_BUFFER_LENGTH];
 	char weather_temperature_text[32];

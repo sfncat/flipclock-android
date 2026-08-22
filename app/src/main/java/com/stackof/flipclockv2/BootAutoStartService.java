@@ -1,4 +1,4 @@
-package one.alynx.flipclock;
+package com.stackof.flipclockv2;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -16,7 +16,7 @@ import android.provider.Settings;
 /**
  * Foreground service started after boot when auto start is enabled.
  *
- * This service tries to bring the main FlipClock activity to the foreground.
+ * This service tries to bring the main FlipClockV2 activity to the foreground.
  * On Android 10+ starting an activity directly from the background is
  * restricted, so we first create a tiny visible overlay window (requires
  * SYSTEM_ALERT_WINDOW permission) and then launch MainActivity. If the overlay
@@ -108,7 +108,7 @@ public class BootAutoStartService extends Service {
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK
                         | PowerManager.ACQUIRE_CAUSES_WAKEUP
                         | PowerManager.ON_AFTER_RELEASE,
-                "FlipClock:BootWakeLock");
+                "FlipClockV2:BootWakeLock");
         mWakeLock.acquire(WAKE_LOCK_TIMEOUT_MS);
     }
 

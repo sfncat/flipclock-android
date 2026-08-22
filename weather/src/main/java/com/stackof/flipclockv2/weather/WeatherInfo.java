@@ -1,4 +1,4 @@
-package one.alynx.flipclock.weather;
+package com.stackof.flipclockv2.weather;
 
 /**
  * Current weather information for a specific location.

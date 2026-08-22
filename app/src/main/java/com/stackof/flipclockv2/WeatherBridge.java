@@ -1,4 +1,4 @@
-package one.alynx.flipclock;
+package com.stackof.flipclockv2;
 
 /**
  * JNI bridge to pass current weather data to the native SDL rendering layer.

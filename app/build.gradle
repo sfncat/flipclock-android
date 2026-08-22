@@ -11,13 +11,13 @@ android {
     defaultConfig {
         compileSdk 33
         if (buildAsApplication) {
-            applicationId "one.alynx.flipclock"
+            applicationId "com.stackof.flipclockv2"
         }
         // minSdk 21 required by NDK r28 (16 KB page size support).
         minSdkVersion 21
         targetSdkVersion 33
-        versionCode 9
-        versionName "1.1.1"
+        versionCode project.hasProperty('APP_VERSION_CODE') ? project.property('APP_VERSION_CODE').toInteger() : 200
+        versionName project.hasProperty('APP_VERSION_NAME') ? project.property('APP_VERSION_NAME') : "2.0.0"
         // NDK r28+ aligns 64-bit libraries to 16 KB by default, which is
         // required for Android 15+ devices with 16 KB memory page sizes.
         ndkVersion "28.2.13676358"
@@ -38,7 +38,7 @@ android {
             // It seems enable minify and shrink resources will make SDL2 crash.
             minifyEnabled false
             shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     applicationVariants.all { variant ->
@@ -62,14 +62,14 @@ android {
     lintOptions {
         abortOnError false
     }
-    namespace 'one.alynx.flipclock'
+    namespace 'com.stackof.flipclockv2'
 
     if (buildAsLibrary) {
         libraryVariants.all { variant ->
             variant.outputs.each { output ->
                 def outputFile = output.outputFile
                 if (outputFile != null && outputFile.name.endsWith(".aar")) {
-                    def fileName = "one.alynx.flipclock.aar";
+                    def fileName = "com.stackof.flipclockv2.aar";
                     output.outputFile = new File(outputFile.parent, fileName);
                 }
             }

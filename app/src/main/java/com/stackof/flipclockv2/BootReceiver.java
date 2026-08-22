@@ -1,4 +1,4 @@
-package one.alynx.flipclock;
+package com.stackof.flipclockv2;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -7,7 +7,7 @@ import android.content.SharedPreferences;
 import android.os.Build;
 
 /**
- * Receives BOOT_COMPLETED broadcast and starts FlipClock if the user has
+ * Receives BOOT_COMPLETED broadcast and starts FlipClockV2 if the user has
  * enabled auto start.
  */
 public class BootReceiver extends BroadcastReceiver {

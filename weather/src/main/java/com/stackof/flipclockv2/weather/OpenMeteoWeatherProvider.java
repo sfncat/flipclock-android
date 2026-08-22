@@ -1,4 +1,4 @@
-package one.alynx.flipclock.weather;
+package com.stackof.flipclockv2.weather;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -120,7 +120,7 @@ public final class OpenMeteoWeatherProvider implements WeatherProvider {
             connection.setConnectTimeout(REQUEST_TIMEOUT_MS);
             connection.setReadTimeout(REQUEST_TIMEOUT_MS);
             connection.setRequestProperty("Accept", "application/json");
-            connection.setRequestProperty("User-Agent", "FlipClock-Weather/1.0");
+            connection.setRequestProperty("User-Agent", "FlipClockV2-Weather/1.0");
 
             int responseCode = connection.getResponseCode();
             if (responseCode < 200 || responseCode >= 300) {

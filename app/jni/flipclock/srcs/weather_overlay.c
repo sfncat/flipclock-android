@@ -1,7 +1,7 @@
 /**
  * 天气覆盖层：在信息栏和时间层之间的空白区域显示天气。
  *
- * 使用 flipclock_cjk.ttf 字体，将温度和天气状况渲染为单行文本，
+ * 使用自定义 CJK 字体（默认霞鹜新智宋），将温度和天气状况渲染为单行文本，
  * 例如 "24°C 晴"。
  */
 #include <stdio.h>
@@ -48,7 +48,13 @@ static void _open_font(struct flipclock_weather_overlay *overlay, int rect_w,
 	_close_font(overlay);
 
 	const struct flipclock *app = overlay->app;
-	if (app->cjk_font_path[0] == '\0') {
+
+	const char *font_path = NULL;
+	if (app->weather_font_path[0] != '\0') {
+		font_path = app->weather_font_path;
+	} else if (app->cjk_font_path[0] != '\0') {
+		font_path = app->cjk_font_path;
+	} else {
 		LOG_ERROR("Weather overlay: no CJK font path configured.\n");
 		overlay->enabled = false;
 		return;
@@ -62,10 +68,10 @@ static void _open_font(struct flipclock_weather_overlay *overlay, int rect_w,
 		px = MAX_FONT_PX;
 	overlay->font_px = px;
 
-	overlay->font = TTF_OpenFont(app->cjk_font_path, px);
+	overlay->font = TTF_OpenFont(font_path, px);
 	if (overlay->font == NULL) {
 		LOG_ERROR("Weather overlay: failed to open CJK font `%s`: %s\n",
-			  app->cjk_font_path, TTF_GetError());
+			  font_path, TTF_GetError());
 		overlay->enabled = false;
 		return;
 	}

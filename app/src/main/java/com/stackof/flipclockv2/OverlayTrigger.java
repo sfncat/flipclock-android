@@ -1,4 +1,4 @@
-package one.alynx.flipclock;
+package com.stackof.flipclockv2;
 
 import android.content.Context;
 import android.graphics.PixelFormat;
@@ -14,7 +14,7 @@ import android.view.WindowManager;
  *
  * On some Android versions and OEMs, having a visible window from a foreground
  * service allows the app to start an Activity from the background. This
- * overlay is used as a trigger before launching the main FlipClock activity
+ * overlay is used as a trigger before launching the main FlipClockV2 activity
  * after boot, then immediately removed.
  */
 public class OverlayTrigger {
