@@ -145,7 +145,9 @@ int main(int argc, char *argv[])
 
 	flipclock_destroy_clocks(app);
 
+#if !defined(__ANDROID__)
 exit:
+#endif
 	flipclock_destroy(app);
 	TTF_Quit();
 	SDL_Quit();
