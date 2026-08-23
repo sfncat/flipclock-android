@@ -122,6 +122,15 @@ static void _open_font(struct flipclock_weather_overlay *overlay, int rect_w,
 
 	int min_side = rect_w < rect_h ? rect_w : rect_h;
 	int px = (int)(min_side * 0.6 * app->info_scale);
+	if (app->weather_large_three_bars) {
+		/*
+		 * 方案3：天气字号不随窄条过度收缩，提升到接近信息栏量级
+		 * （仍 ≤ 条宽，竖排列宽 ≈ 字号，避免溢出与左右信息重叠）。
+		 */
+		int bigger = (int)(min_side * 0.85 * app->info_scale);
+		if (bigger > px)
+			px = bigger;
+	}
 	if (px < MIN_FONT_PX)
 		px = MIN_FONT_PX;
 	if (px > MAX_FONT_PX)

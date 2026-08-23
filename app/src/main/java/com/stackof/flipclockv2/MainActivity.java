@@ -91,6 +91,15 @@ public class MainActivity extends SDLActivity {
             sb.append("weather_update_interval_hours=")
                     .append(prefs.getInt("weather_update_interval_hours", 1))
                     .append('\n');
+            sb.append("weather_merge_landscape=")
+                    .append(prefs.getBoolean("weather_merge_landscape", true))
+                    .append('\n');
+            sb.append("date_on_top_portrait=")
+                    .append(prefs.getBoolean("date_on_top_portrait", true))
+                    .append('\n');
+            sb.append("weather_large_three_bars=")
+                    .append(prefs.getBoolean("weather_large_three_bars", false))
+                    .append('\n');
             String infoBarFont = prefs.getString("info_bar_font",
                     "LXGWXiHeiMN.ttf");
             if (!infoBarFont.isEmpty()) {

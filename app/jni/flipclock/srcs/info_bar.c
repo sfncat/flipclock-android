@@ -93,14 +93,17 @@ static bool _is_cjk(uint32_t cp)
 static int _typo_collect_groups(const struct flipclock_info_bar *bar,
 				struct typo_group groups[], int max_groups)
 {
-	const char *texts[3];
+	const char *texts[4];
 	int n = 0;
-	if (bar->date_text[0])
+	if (bar->date_text[0] && !bar->hide_date)
 		texts[n++] = bar->date_text;
 	if (bar->weekday_text[0])
 		texts[n++] = bar->weekday_text;
 	if (bar->lunar_text[0])
 		texts[n++] = bar->lunar_text;
+	/* 天气并入信息栏（方案2 左栏）时作为额外一段参与竖排。 */
+	if (bar->show_weather_segment && bar->weather_text[0])
+		texts[n++] = bar->weather_text;
 	int count = 0;
 	for (int t = 0; t < n && count < max_groups; ++t) {
 		const char *p = texts[t];
@@ -156,14 +159,14 @@ static int _typography_font_px(const struct flipclock_info_bar *bar)
 	 * 保守系数，并给信息栏高度留 5% 余量，避免整列超出而被顶部裁切。
 	 * 组内字形间距数 = 总字数 - 组数，计入估算以保证字号合理。
 	 */
-	double units = cjk_count * 1.25 + ascii_count * 0.6 +
+	double units = cjk_count * 1.1 + ascii_count * 0.6 +
 		       TYPO_GLYPH_SPACING *
 			       (cjk_count + ascii_count - g) +
-		       (g - 1) * 0.7;
+		       (g - 1) * 0.6;
 	if (units <= 0)
 		return 0;
 	double px_w = bar->rect.w * 0.9;
-	double px_h = bar->rect.h * 0.95 / units;
+	double px_h = bar->rect.h * 0.97 / units;
 	double px = (px_w < px_h ? px_w : px_h) * bar->app->info_scale;
 	int px_i = (int)px;
 	if (px_i < 8)
@@ -230,6 +233,10 @@ flipclock_info_bar_create(struct flipclock *app, SDL_Renderer *renderer)
 	bar->date_text[0] = '\0';
 	bar->weekday_text[0] = '\0';
 	bar->lunar_text[0] = '\0';
+	bar->show_weather_segment = false;
+	bar->horizontal_stack = false;
+	bar->hide_date = false;
+	bar->weather_text[0] = '\0';
 	bar->last_yday = -1;
 	bar->last_year = -1;
 	return bar;
@@ -242,6 +249,10 @@ void flipclock_info_bar_set_rect(struct flipclock_info_bar *bar, SDL_Rect rect,
 
 	bar->rect = rect;
 	bar->horizontal = horizontal;
+	/* 这两个由 clock.c 在布局时按模式重新设置，这里先清掉旧值。 */
+	bar->show_weather_segment = false;
+	bar->horizontal_stack = false;
+	bar->hide_date = false;
 
 	const struct flipclock *app = bar->app;
 	int px;
@@ -410,24 +421,72 @@ static SDL_Texture *_render_glyph(struct flipclock_info_bar *bar,
 
 static void _draw_horizontal(struct flipclock_info_bar *bar, SDL_Point offset)
 {
-	/* 收集非空文本。 */
-	const char *texts[3];
+	/* 收集非空文本，最多 4 段（含并入的天气段）。 */
+	const char *texts[4];
 	int count = 0;
-	if (bar->date_text[0])
+	if (bar->date_text[0] && !bar->hide_date)
 		texts[count++] = bar->date_text;
 	if (bar->weekday_text[0])
 		texts[count++] = bar->weekday_text;
 	if (bar->lunar_text[0])
 		texts[count++] = bar->lunar_text;
+	if (bar->show_weather_segment && bar->weather_text[0])
+		texts[count++] = bar->weather_text;
 	if (count == 0)
 		return;
 
-	SDL_Texture *textures[3] = { NULL, NULL, NULL };
-	int widths[3] = { 0, 0, 0 };
-	int heights[3] = { 0, 0, 0 };
+	/*
+	 * 自适应字号（方案1「字少时放大」）：
+	 * - 内容过宽则缩小，避免超出横条；
+	 * - 内容偏窄则放大，直到占满约 90% 横条宽度或达到上限。
+	 * 每轮先用候选字号测量整行宽，再据此调整字号。
+	 */
+	int px = bar->font_px;
+	const int max_px = (int)(bar->rect.h * 1.1);
+	const int min_px = 8;
+	for (int attempt = 0; attempt < 12; ++attempt) {
+		_flipclock_info_bar_close_font(bar);
+		_flipclock_info_bar_open_font(bar, px);
+		if (bar->font == NULL)
+			break;
+		int total_w = 0;
+		for (int i = 0; i < count; ++i) {
+			int w = 0, h = 0;
+			SDL_Texture *t = _render_line(bar, texts[i], &w, &h);
+			if (t != NULL)
+				SDL_DestroyTexture(t);
+			total_w += w;
+		}
+		int gap = px / 3;
+		total_w += gap * (count - 1);
+		if (total_w > bar->rect.w) {
+			int new_px = (int)(px * ((double)bar->rect.w * 0.98 /
+						 total_w));
+			if (new_px >= px)
+				break;
+			px = new_px < min_px ? min_px : new_px;
+		} else if (total_w < bar->rect.w * 0.85 && px < max_px) {
+			int new_px = (int)(px *
+					   ((double)bar->rect.w * 0.9 /
+					    total_w));
+			if (new_px <= px)
+				new_px = px + 1;
+			if (new_px > max_px)
+				new_px = max_px;
+			px = new_px;
+		} else {
+			break;
+		}
+	}
+	if (bar->font == NULL)
+		return;
+
+	SDL_Texture *textures[4] = { NULL, NULL, NULL, NULL };
+	int widths[4] = { 0, 0, 0, 0 };
+	int heights[4] = { 0, 0, 0, 0 };
 	int total_w = 0;
 	int max_h = 0;
-	int gap = bar->rect.h / 3;
+	int gap = px / 3;
 	for (int i = 0; i < count; ++i) {
 		textures[i] = _render_line(bar, texts[i], &widths[i],
 					   &heights[i]);
@@ -499,7 +558,7 @@ static void _draw_vertical(struct flipclock_info_bar *bar, SDL_Point offset)
 {
 	char lines[MAX_VERTICAL_LINES][INFO_TEXT_LENGTH];
 	int count = 0;
-	if (bar->date_text[0])
+	if (bar->date_text[0] && !bar->hide_date)
 		count += _split_into_lines(bar->date_text, &lines[count],
 					   MAX_VERTICAL_LINES - count);
 	if (bar->weekday_text[0] && count < MAX_VERTICAL_LINES) {
@@ -510,6 +569,13 @@ static void _draw_vertical(struct flipclock_info_bar *bar, SDL_Point offset)
 	if (bar->lunar_text[0])
 		count += _split_into_lines(bar->lunar_text, &lines[count],
 					   MAX_VERTICAL_LINES - count);
+	/* 天气并入信息栏时（方案2 左栏）作为单独一行追加，不按空格拆分。 */
+	if (bar->show_weather_segment && bar->weather_text[0] &&
+	    count < MAX_VERTICAL_LINES) {
+		strncpy(lines[count], bar->weather_text, INFO_TEXT_LENGTH - 1);
+		lines[count][INFO_TEXT_LENGTH - 1] = '\0';
+		++count;
+	}
 	if (count == 0)
 		return;
 
@@ -696,7 +762,7 @@ void flipclock_info_bar_draw(struct flipclock_info_bar *bar, SDL_Point offset)
 
 	if (bar->horizontal)
 		_draw_horizontal(bar, offset);
-	else if (bar->app->info_vertical)
+	else if (bar->app->info_vertical && !bar->horizontal_stack)
 		_draw_vertical_typography(bar, offset);
 	else
 		_draw_vertical(bar, offset);

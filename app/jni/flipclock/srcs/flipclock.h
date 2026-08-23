@@ -92,6 +92,13 @@ struct flipclock {
 	bool info_vertical;   /* 竖屏时信息栏采用传统竖排文字，默认开启。 */
 	bool burn_in_protection; /* 防烧屏保护：开启后主界面缓慢微移，默认关闭。 */
 	double burn_in_protection_offset; /* 防烧屏位移幅度（相对屏幕短边的比例）。 */
+	/* 天气布局增强（均为可选开关，默认关闭）：
+	 * - weather_merge_landscape：横屏把天气并入顶部日期栏（变两栏）。
+	 * - date_on_top_portrait：竖屏日期置顶横排，info栏(含天气)在左下，时间在右下。
+	 * - weather_large_three_bars：保留三栏，天气不缩字，跟随 info_bar 同距同移。 */
+	bool weather_merge_landscape;
+	bool date_on_top_portrait;
+	bool weather_large_three_bars;
 	double info_scale;
 	char cjk_font_path[MAX_BUFFER_LENGTH];
 	/* 信息栏和天气可分别使用不同字体，为空时回退到 cjk_font_path。 */

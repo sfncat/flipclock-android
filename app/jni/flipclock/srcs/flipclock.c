@@ -83,6 +83,9 @@ struct flipclock *flipclock_create(void)
 	app->info_vertical = true;
 	app->burn_in_protection = true;
 	app->burn_in_protection_offset = 0.05;
+	app->weather_merge_landscape = true;
+	app->date_on_top_portrait = true;
+	app->weather_large_three_bars = false;
 	app->info_scale = 1.0;
 	app->cjk_font_path[0] = '\0';
 	app->info_bar_font_path[0] = '\0';
@@ -400,6 +403,12 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 			app->burn_in_protection_offset = 0.05;
 	} else if (!strcmp(key, "show_weather")) {
 		app->show_weather = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "weather_merge_landscape")) {
+		app->weather_merge_landscape = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "date_on_top_portrait")) {
+		app->date_on_top_portrait = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "weather_large_three_bars")) {
+		app->weather_large_three_bars = (!strcmp(value, "true"));
 	} else if (!strcmp(key, "weather_location")) {
 		strncpy(app->weather_location, value, MAX_BUFFER_LENGTH);
 		app->weather_location[MAX_BUFFER_LENGTH - 1] = '\0';

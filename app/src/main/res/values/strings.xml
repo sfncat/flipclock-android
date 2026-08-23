@@ -28,6 +28,10 @@
     <string name="burn_in_protection_label">防烧屏保护</string>
     <string name="burn_in_protection_offset_label">防烧屏位移幅度</string>
     <string name="burn_in_protection_offset_summary">当前偏移量：%1$s%%（相对屏幕短边）</string>
+    <string name="weather_merge_landscape_label">横屏合并天气到日期栏</string>
+    <string name="date_on_top_portrait_label">竖屏日期置顶（防烧屏：左右移动+淡入淡出）</string>
+    <string name="weather_large_three_bars_label">三栏布局时天气不缩小</string>
+    <string name="layout_options_hint">布局优化（实验）：以下三个选项相互独立，仅在对应屏幕方向生效，修改后需重启应用。横屏合并会把天气并入顶部日期栏并改为二栏；竖屏日期置顶会把“年月日”移到最上方（左为信息栏、右为时间）；三栏不缩小会让天气栏字号与信息栏保持一致并随防烧屏相同位移。</string>
     <string name="info_bar_restart_hint">提示：更改以上选项（包括字体）后，需重启 FlipClockV2 才能生效。横屏时显示在主界面顶部，竖屏时显示在左侧。开启防烧屏保护后，信息栏和时间显示会缓慢做小幅位移。</string>
     <string name="weather_section_title">天气</string>
     <string name="show_weather_label">显示天气</string>

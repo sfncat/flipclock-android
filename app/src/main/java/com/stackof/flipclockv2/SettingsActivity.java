@@ -61,6 +61,10 @@ public class SettingsActivity extends Activity {
     private static final String KEY_INFO_BAR_FONT = "info_bar_font";
     private static final String KEY_WEATHER_FONT = "weather_font";
 
+    private static final String KEY_WEATHER_MERGE_LANDSCAPE = "weather_merge_landscape";
+    private static final String KEY_DATE_ON_TOP_PORTRAIT = "date_on_top_portrait";
+    private static final String KEY_WEATHER_LARGE_THREE_BARS = "weather_large_three_bars";
+
     private static final String DEFAULT_INFO_BAR_FONT = "LXGWXiHeiMN.ttf";
     private static final String DEFAULT_WEATHER_FONT = "LXGWNeoZhiSong.ttf";
 
@@ -96,6 +100,9 @@ public class SettingsActivity extends Activity {
     private Switch showLunarYearSwitch;
     private Switch infoVerticalSwitch;
     private Switch burnInProtectionSwitch;
+    private Switch weatherMergeLandscapeSwitch;
+    private Switch dateOnTopPortraitSwitch;
+    private Switch weatherLargeThreeBarsSwitch;
     private LinearLayout burnInProtectionOffsetContainer;
     private TextView burnInProtectionOffsetSummary;
     private SeekBar burnInProtectionOffsetSeekBar;
@@ -131,6 +138,9 @@ public class SettingsActivity extends Activity {
         showLunarYearSwitch = findViewById(R.id.show_lunar_year_switch);
         infoVerticalSwitch = findViewById(R.id.info_vertical_switch);
         burnInProtectionSwitch = findViewById(R.id.burn_in_protection_switch);
+        weatherMergeLandscapeSwitch = findViewById(R.id.weather_merge_landscape_switch);
+        dateOnTopPortraitSwitch = findViewById(R.id.date_on_top_portrait_switch);
+        weatherLargeThreeBarsSwitch = findViewById(R.id.weather_large_three_bars_switch);
         burnInProtectionOffsetContainer =
                 findViewById(R.id.burn_in_protection_offset_container);
         burnInProtectionOffsetSummary =
@@ -176,6 +186,12 @@ public class SettingsActivity extends Activity {
                 prefs.getBoolean(KEY_INFO_VERTICAL, true));
         burnInProtectionSwitch.setChecked(
                 prefs.getBoolean(KEY_BURN_IN_PROTECTION, true));
+        weatherMergeLandscapeSwitch.setChecked(
+                prefs.getBoolean(KEY_WEATHER_MERGE_LANDSCAPE, true));
+        dateOnTopPortraitSwitch.setChecked(
+                prefs.getBoolean(KEY_DATE_ON_TOP_PORTRAIT, true));
+        weatherLargeThreeBarsSwitch.setChecked(
+                prefs.getBoolean(KEY_WEATHER_LARGE_THREE_BARS, false));
         setupBurnInProtectionOffset();
         showDateSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
@@ -193,6 +209,12 @@ public class SettingsActivity extends Activity {
                             .apply();
                     updateBurnInProtectionOffsetVisibility();
                 });
+        weatherMergeLandscapeSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_WEATHER_MERGE_LANDSCAPE, isChecked).apply());
+        dateOnTopPortraitSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_DATE_ON_TOP_PORTRAIT, isChecked).apply());
+        weatherLargeThreeBarsSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_WEATHER_LARGE_THREE_BARS, isChecked).apply());
 
         setupWeatherSettings();
         setupFontSettings();

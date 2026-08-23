@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 struct flipclock_info_bar;
 struct flipclock_weather_overlay;
@@ -30,6 +31,10 @@ struct flipclock_clock {
 	bool waiting;
 	/* 天气覆盖层绘制区域：信息栏与时间卡片之间的空白区。 */
 	SDL_Rect weather_rect;
+	/* 方案2 竖屏置顶日期带区域，及其专用字体（横排、不旋转）。 */
+	SDL_Rect date_rect;
+	TTF_Font *date_font;
+	int date_font_px;
 	/* 防烧屏状态机，用于在最远点停留并显示天气。 */
 	enum flipclock_burn_in_state burn_in_state;
 	Uint32 burn_in_hold_start_ticks;
