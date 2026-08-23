@@ -34,8 +34,8 @@ static bool _flipclock_clock_has_info_bar(const struct flipclock *app)
  * - 竖屏时信息栏在左方、卡片在中间，两者在 X 轴上相互靠近/远离。
  * 函数返回信息栏应叠加的偏移，卡片组使用反向偏移。
  *
- * 天气始终固定位置显示；开启防烧屏时，天气额外做水平微移，
- * 幅度由 burn_in_protection_offset 控制。
+ * 天气始终固定位置显示；开启防烧屏时，天气额外做微移，
+ * 幅度由 burn_in_protection_offset 控制（横屏左右、竖屏上下）。
  */
 static SDL_Point _flipclock_clock_get_burn_in_offset(struct flipclock_clock *clock)
 {
@@ -130,10 +130,30 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 						     true);
 		}
 
+		/*
+		 * 横屏天气区域位于信息栏与卡片之间。开启防烧屏时信息栏向下、
+		 * 卡片向上各移动最多一个振幅，天气可能分别与日期/时间重叠，
+		 * 因此上下两侧各预留一个振幅的纵向余量。两者反向等量移动，
+		 * 间隙中点恒定，天气居中位置不变，字号随安全区缩小自适应，
+		 * 保证全相位不重叠。
+		 */
+		int burn_in_reserve = 0;
+		if (app->burn_in_protection) {
+			int min_side = clock->w < clock->h ? clock->w : clock->h;
+			double ratio = app->burn_in_protection_offset;
+			if (ratio < 0.0)
+				ratio = 0.0;
+			if (ratio > 0.05)
+				ratio = 0.05;
+			burn_in_reserve = (int)(min_side * ratio);
+		}
 		clock->weather_rect.x = 0;
-		clock->weather_rect.y = space_size + (int)(clock->h * INFO_RATIO);
+		clock->weather_rect.y = space_size +
+					 (int)(clock->h * INFO_RATIO) +
+					 burn_in_reserve;
 		clock->weather_rect.w = clock->w;
-		clock->weather_rect.h = hour_rect.y - clock->weather_rect.y;
+		clock->weather_rect.h = hour_rect.y - clock->weather_rect.y -
+					 burn_in_reserve;
 	} else {
 		int space_size = clock->h / (cards_length * 8 + spaces_length);
 		/* 信息栏宽度 + 左间距 + 右间距。 */
@@ -186,6 +206,26 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 		clock->weather_rect.y = 0;
 		clock->weather_rect.w = hour_rect.x - clock->weather_rect.x;
 		clock->weather_rect.h = clock->h;
+		/*
+		 * 竖屏天气位于信息栏与时间卡片之间，视觉上离卡片偏近：收窄天气
+		 * 区域右侧使其整体略向左移。开启防烧屏时卡片会向天气方向水平移动
+		 * 最多一个振幅，此时多留余量；区域较窄时按比例限制避免过度压缩。
+		 */
+		int w_bias = clock->weather_rect.w / 6;
+		if (app->burn_in_protection) {
+			int min_side = clock->w < clock->h ? clock->w : clock->h;
+			double ratio = app->burn_in_protection_offset;
+			if (ratio < 0.0)
+				ratio = 0.0;
+			if (ratio > 0.05)
+				ratio = 0.05;
+			int amplitude = (int)(min_side * ratio);
+			if (amplitude > w_bias)
+				w_bias = amplitude;
+		}
+		if (w_bias > clock->weather_rect.w / 3)
+			w_bias = clock->weather_rect.w / 3;
+		clock->weather_rect.w -= w_bias;
 	}
 }
 
@@ -524,9 +564,9 @@ void flipclock_clock_animate(struct flipclock_clock *clock)
 		SDL_UnlockMutex(mutable_app->weather_mutex);
 
 		/*
-		 * 天气始终固定显示。开启防烧屏时，天气额外做水平微移，
-		 * 幅度与防烧屏一致（屏幕短边 × burn_in_protection_offset），
-		 * 即先向左移动该幅度，回到中间，再向右移动该幅度。
+		 * 天气始终固定显示。开启防烧屏时，天气额外做微移，幅度与防烧屏
+		 * 一致（屏幕短边 × burn_in_protection_offset）：横屏左右移动，
+		 * 竖屏（竖排天气）上下移动。
 		 */
 		SDL_Rect weather_draw_rect = clock->weather_rect;
 		if (mutable_app->burn_in_protection) {
@@ -540,7 +580,10 @@ void flipclock_clock_animate(struct flipclock_clock *clock)
 				       (double)(ticks % BURN_IN_PERIOD_MS) /
 				       (double)BURN_IN_PERIOD_MS;
 			int w_offset = (int)(w_amplitude * sin(phase));
-			weather_draw_rect.x += w_offset;
+			if (clock->w >= clock->h)
+				weather_draw_rect.x += w_offset;
+			else
+				weather_draw_rect.y += w_offset;
 		}
 
 		flipclock_weather_overlay_draw(clock->weather_overlay,
