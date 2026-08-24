@@ -19,8 +19,8 @@
 #include "info_bar.h"
 #include "lunar.h"
 
-static const char *WEEKDAY_NAMES[7] = { "星期日", "星期一", "星期二", "星期三",
-					"星期四", "星期五", "星期六" };
+static const char *WEEKDAY_NAMES[7] = { "周日", "周一", "周二", "周三",
+					"周四", "周五", "周六" };
 
 /* 竖排文字：最多 3 个文本源，按空格拆出的组数与单组字符数上限。 */
 #define MAX_TYPO_GROUPS 8
@@ -28,6 +28,9 @@ static const char *WEEKDAY_NAMES[7] = { "星期日", "星期一", "星期二", "
 /* 组内相邻字形之间的垂直间距（相对字号的倍数），
    避免日期数字等旋转字符上下完全挨在一起。 */
 #define TYPO_GLYPH_SPACING 0.15
+/* 竖排时，连续的非 CJK 码点（如温度数字「28」）若不超过此数量，
+   则作为一个整体横向书写（不旋转 90°），即「28」横着排。 */
+#define MAX_TYPO_RUN_CP 4
 
 struct typo_group {
 	const char *text;
@@ -615,6 +618,54 @@ static void _draw_vertical(struct flipclock_info_bar *bar, SDL_Point offset)
  * 渲染竖排全部字形并计算整体尺寸（总高/最宽列宽）。重复调用时先销毁
  * 上一批纹理，供字号调整后重新渲染使用。
  */
+/* 把一段连续的非 CJK 子串作为整体横向渲染（不旋转），用于竖排时让温度
+   数字「28」横向书写。失败时按估算尺寸占位，避免布局塌缩。 */
+static void _typo_push_run_horizontal(struct flipclock_info_bar *bar,
+				      struct typo_glyph glyphs[], int *count,
+				      const char *text, int len)
+{
+	char buf[64];
+	if (len > (int)sizeof(buf) - 1)
+		len = (int)sizeof(buf) - 1;
+	memcpy(buf, text, len);
+	buf[len] = '\0';
+	glyphs[*count].rotated = false;
+	glyphs[*count].texture =
+		_render_line(bar, buf, &glyphs[*count].w,
+			     &glyphs[*count].h);
+	if (glyphs[*count].texture == NULL) {
+		glyphs[*count].w = bar->font_px * len;
+		glyphs[*count].h = bar->font_px;
+	}
+	++(*count);
+}
+
+/* 把一段非 CJK 子串按逐字竖排（每字旋转 90°）渲染，用于过长串
+   （如日期「2026-08-23」）回落到原有行为，避免横向溢出窄栏。 */
+static void _typo_push_run_rotated(struct flipclock_info_bar *bar,
+				   struct typo_glyph glyphs[], int *count,
+				   const char *text, int len)
+{
+	const char *p = text;
+	const char *end = text + len;
+	while (p < end && *count < MAX_TYPO_GLYPHS) {
+		int clen;
+		uint32_t cp = _utf8_decode_char(p, &clen);
+		if (clen <= 0)
+			break;
+		p += clen;
+		glyphs[*count].rotated = true;
+		glyphs[*count].texture =
+			_render_glyph(bar, cp, true, &glyphs[*count].w,
+				      &glyphs[*count].h);
+		if (glyphs[*count].texture == NULL) {
+			glyphs[*count].w = bar->font_px;
+			glyphs[*count].h = (int)(bar->font_px * 0.6);
+		}
+		++(*count);
+	}
+}
+
 static void _typo_render_glyphs(struct flipclock_info_bar *bar,
 				const struct typo_group groups[], int g,
 				struct typo_glyph glyphs[], int group_end[],
@@ -631,30 +682,60 @@ static void _typo_render_glyphs(struct flipclock_info_bar *bar,
 	for (int i = 0; i < g && count < MAX_TYPO_GLYPHS; ++i) {
 		const char *p = groups[i].text;
 		const char *end = p + groups[i].length;
+		const char *run_start = NULL;
+		int run_len = 0;	/* 累计字节数 */
+		int run_cp = 0;		/* 累计码点数 */
 		while (p < end && count < MAX_TYPO_GLYPHS) {
 			int len;
 			uint32_t cp = _utf8_decode_char(p, &len);
 			if (len <= 0)
 				break;
-			p += len;
-			bool rotated = !_is_cjk(cp);
-			glyphs[count].rotated = rotated;
-			glyphs[count].texture =
-				_render_glyph(bar, cp, rotated,
-					      &glyphs[count].w,
-					      &glyphs[count].h);
-			if (glyphs[count].texture == NULL) {
-				/* 渲染失败时按估算尺寸占位，布局不塌缩。 */
-				if (rotated) {
-					glyphs[count].w = bar->font_px;
-					glyphs[count].h =
-						(int)(bar->font_px * 0.6);
-				} else {
+			if (_is_cjk(cp)) {
+				/* 遇到汉字前，先把累积的非 CJK 串输出。 */
+				if (run_len > 0) {
+					if (run_cp <= MAX_TYPO_RUN_CP)
+						_typo_push_run_horizontal(
+							bar, glyphs,
+							&count,
+							run_start,
+							run_len);
+					else
+						_typo_push_run_rotated(
+							bar, glyphs,
+							&count,
+							run_start,
+							run_len);
+					run_len = 0;
+					run_cp = 0;
+					run_start = NULL;
+				}
+				glyphs[count].rotated = false;
+				glyphs[count].texture =
+					_render_glyph(bar, cp, false,
+						      &glyphs[count].w,
+						      &glyphs[count].h);
+				if (glyphs[count].texture == NULL) {
 					glyphs[count].w = bar->font_px;
 					glyphs[count].h = bar->font_px;
 				}
+				++count;
+			} else {
+				if (run_len == 0)
+					run_start = p;
+				run_len += len;
+				++run_cp;
 			}
-			++count;
+			p += len;
+		}
+		if (run_len > 0 && count < MAX_TYPO_GLYPHS) {
+			if (run_cp <= MAX_TYPO_RUN_CP)
+				_typo_push_run_horizontal(bar, glyphs,
+							  &count, run_start,
+							  run_len);
+			else
+				_typo_push_run_rotated(bar, glyphs,
+						       &count, run_start,
+						       run_len);
 		}
 		group_end[i] = count;
 	}

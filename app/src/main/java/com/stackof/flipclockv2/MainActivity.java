@@ -243,7 +243,7 @@ public class MainActivity extends SDLActivity {
             @Override
             public void onWeatherUpdated(WeatherInfo info) {
                 String locationName = info.getLocation().getName();
-                String temperature = info.getTemperature() + "°C";
+                String temperature = info.getTemperature() + "度";
                 String description = info.getDescription();
                 WeatherBridge.nativeUpdateWeather(locationName, temperature, description);
                 // Clear any stored weather error on success.

@@ -256,188 +256,182 @@ void flipclock_weather_overlay_set_text(
 }
 
 /**
- * 竖排绘制：逐字解码温度与天气描述（跳过空格），自上而下排列；
- * CJK 汉字直立，ASCII（数字、`°`、`C` 等）顺时针旋转 90°，
- * 整列在绘制区域内水平、垂直居中。
+ * 竖排绘制：解码温度与天气描述（跳过空格），自上而下排列；
+ * CJK 汉字直立；连续的非 CJK 码点（如温度数字「28」）合并为一个横向
+ * 书写的串（不旋转 90°），即「28」横着排；整列水平、垂直居中。
  *
  * 字形按需实时渲染并立即销毁（天气文本仅在刷新时变更，逐帧重建开销可忽略，
  * 也避免在 overlay 中维护字形纹理缓存及其失效逻辑）。
  */
 static void _draw_vertical_typography(struct flipclock_weather_overlay *overlay,
-				      SDL_Rect rect)
+                                      SDL_Rect rect)
 {
-	uint32_t cps[WEATHER_TEXT_LENGTH];
-	int n = 0;
-	const char *parts[2] = { overlay->temperature_text,
-				 overlay->description_text };
-	for (int i = 0; i < 2 && n < WEATHER_TEXT_LENGTH; ++i) {
-		const char *p = parts[i];
-		while (*p != '\0' && n < WEATHER_TEXT_LENGTH) {
-			int len;
-			uint32_t cp = _utf8_decode_char(p, &len);
-			if (len <= 0)
-				break;
-			p += len;
-			/* 温度与描述之间的空格仅作横向排版分隔，竖排时跳过。 */
-			if (cp == ' ')
-				continue;
-			cps[n++] = cp;
-		}
-	}
-	if (n == 0)
-		return;
+    /*
+     * 把连续的非 CJK 码点合并为「横向段」，CJK 单字为「直立段」；
+     * 例如温度「28度 晴」拆为 [ "28"(横), "度"(直), "晴"(直) ]。
+     */
+    struct {
+        const char *text;
+        int len;
+        bool cjk;
+    } segs[WEATHER_TEXT_LENGTH];
+    int ns = 0;
 
-	SDL_Renderer *renderer = overlay->renderer;
-	SDL_Color color = overlay->app->text_color;
-	int glyph_gap = (int)(overlay->font_px * WEATHER_GLYPH_SPACING);
+    const char *parts[2] = { overlay->temperature_text,
+                             overlay->description_text };
+    for (int i = 0; i < 2 && ns < WEATHER_TEXT_LENGTH; ++i) {
+        const char *p = parts[i];
+        while (*p != '\0' && ns < WEATHER_TEXT_LENGTH) {
+            int len;
+            uint32_t cp = _utf8_decode_char(p, &len);
+            if (len <= 0)
+                break;
+            if (cp == ' ') {
+                p += len;
+                continue;
+            }
+            bool cjk = _is_cjk(cp);
+            if (cjk || ns == 0 || segs[ns - 1].cjk) {
+                segs[ns].text = p;
+                segs[ns].len = len;
+                segs[ns].cjk = cjk;
+                ++ns;
+            } else {
+                /* 连续非 CJK：并入上一段，整体横向书写。 */
+                segs[ns - 1].len += len;
+            }
+            p += len;
+        }
+    }
+    if (ns == 0)
+        return;
 
-	/*
-	 * 估算整列总高：直立汉字约 1.25 倍字号、旋转字符约 0.6 倍字号，
-	 * 并计入字形间距；若超出区域高度则按比例缩小字号重开字体。
-	 */
-	for (;;) {
-		double units = 0;
-		for (int i = 0; i < n; ++i)
-			units += _is_cjk(cps[i]) ? 1.25 : 0.6;
-		units += WEATHER_GLYPH_SPACING * (n - 1);
-		int est_h = (int)(overlay->font_px * units);
-		if (est_h <= rect.h || overlay->font_px <= MIN_FONT_PX)
-			break;
-		int new_px = (int)((double)overlay->font_px * rect.h / est_h);
-		if (new_px < MIN_FONT_PX)
-			new_px = MIN_FONT_PX;
-		if (new_px == overlay->font_px)
-			break;
-		_close_font(overlay);
-		overlay->font_px = new_px;
-		overlay->font = TTF_OpenFont(
-			overlay->app->weather_font_path[0] != '\0'
-				? overlay->app->weather_font_path
-				: overlay->app->cjk_font_path,
-			new_px);
-		if (overlay->font == NULL) {
-			LOG_ERROR("Weather overlay: failed to reopen font: %s\n",
-				  TTF_GetError());
-			overlay->enabled = false;
-			return;
-		}
-		TTF_SetFontStyle(overlay->font, TTF_STYLE_BOLD);
-		glyph_gap = (int)(overlay->font_px * WEATHER_GLYPH_SPACING);
-	}
+    SDL_Renderer *renderer = overlay->renderer;
+    SDL_Color color = overlay->app->text_color;
+    int glyph_gap = (int)(overlay->font_px * WEATHER_GLYPH_SPACING);
 
-	/* 逐字渲染，统计实际总高与最宽字形宽度。 */
-	SDL_Texture *textures[WEATHER_TEXT_LENGTH] = { NULL };
-	int widths[WEATHER_TEXT_LENGTH] = { 0 };
-	int heights[WEATHER_TEXT_LENGTH] = { 0 };
-	bool rotated[WEATHER_TEXT_LENGTH] = { false };
-	int total_h = glyph_gap * (n - 1);
-	int max_w = 0;
-	for (int i = 0; i < n; ++i) {
-		char utf8[5];
-		int len = 0;
-		uint32_t cp = cps[i];
-		if (cp < 0x80) {
-			utf8[len++] = (char)cp;
-		} else if (cp < 0x800) {
-			utf8[len++] = (char)(0xC0 | (cp >> 6));
-			utf8[len++] = (char)(0x80 | (cp & 0x3F));
-		} else if (cp < 0x10000) {
-			utf8[len++] = (char)(0xE0 | (cp >> 12));
-			utf8[len++] = (char)(0x80 | ((cp >> 6) & 0x3F));
-			utf8[len++] = (char)(0x80 | (cp & 0x3F));
-		} else {
-			utf8[len++] = (char)(0xF0 | (cp >> 18));
-			utf8[len++] = (char)(0x80 | ((cp >> 12) & 0x3F));
-			utf8[len++] = (char)(0x80 | ((cp >> 6) & 0x3F));
-			utf8[len++] = (char)(0x80 | (cp & 0x3F));
-		}
-		utf8[len] = '\0';
+    /*
+     * 估算整列总高：直立汉字约 1.25 倍字号、横向段约 1.0 倍字号，
+     * 并计入字形间距；若超出区域高度则按比例缩小字号重开字体。
+     */
+    for (;;) {
+        double units = 0;
+        for (int i = 0; i < ns; ++i)
+            units += segs[i].cjk ? 1.25 : 1.0;
+        units += WEATHER_GLYPH_SPACING * (ns - 1);
+        int est_h = (int)(overlay->font_px * units);
+        if (est_h <= rect.h || overlay->font_px <= MIN_FONT_PX)
+            break;
+        int new_px = (int)((double)overlay->font_px * rect.h / est_h);
+        if (new_px < MIN_FONT_PX)
+            new_px = MIN_FONT_PX;
+        if (new_px == overlay->font_px)
+            break;
+        _close_font(overlay);
+        overlay->font_px = new_px;
+        overlay->font = TTF_OpenFont(
+            overlay->app->weather_font_path[0] != '\0'
+                ? overlay->app->weather_font_path
+                : overlay->app->cjk_font_path,
+            new_px);
+        if (overlay->font == NULL) {
+            LOG_ERROR("Weather overlay: failed to reopen font: %s\n",
+                      TTF_GetError());
+            overlay->enabled = false;
+            return;
+        }
+        TTF_SetFontStyle(overlay->font, TTF_STYLE_BOLD);
+        glyph_gap = (int)(overlay->font_px * WEATHER_GLYPH_SPACING);
+    }
 
-		rotated[i] = !_is_cjk(cp);
-		SDL_Surface *surface =
-			TTF_RenderUTF8_Blended(overlay->font, utf8, color);
-		if (surface == NULL) {
-			LOG_ERROR("Weather overlay: render glyph failed: %s\n",
-				  TTF_GetError());
-			continue;
-		}
-		textures[i] = SDL_CreateTextureFromSurface(renderer, surface);
-		if (rotated[i]) {
-			/* 旋转后显示尺寸为「原高 × 原宽」。 */
-			widths[i] = surface->h;
-			heights[i] = surface->w;
-		} else {
-			widths[i] = surface->w;
-			heights[i] = surface->h;
-		}
-		SDL_FreeSurface(surface);
-		total_h += heights[i];
-		if (widths[i] > max_w)
-			max_w = widths[i];
-	}
-	if (max_w == 0) {
-		for (int i = 0; i < n; ++i) {
-			if (textures[i] != NULL)
-				SDL_DestroyTexture(textures[i]);
-		}
-		return;
-	}
+    /* 逐段渲染（全部横向书写），统计实际总高与最宽段宽度。 */
+    SDL_Texture *textures[WEATHER_TEXT_LENGTH] = { NULL };
+    int widths[WEATHER_TEXT_LENGTH] = { 0 };
+    int heights[WEATHER_TEXT_LENGTH] = { 0 };
+    int total_h = glyph_gap * (ns - 1);
+    int max_w = 0;
+    for (int i = 0; i < ns; ++i) {
+        char utf8[WEATHER_TEXT_LENGTH];
+        int L = segs[i].len;
+        if (L >= (int)sizeof(utf8))
+            L = (int)sizeof(utf8) - 1;
+        memcpy(utf8, segs[i].text, L);
+        utf8[L] = '\0';
+        SDL_Surface *surface =
+            TTF_RenderUTF8_Blended(overlay->font, utf8, color);
+        if (surface == NULL) {
+            LOG_ERROR("Weather overlay: render glyph failed: %s\n",
+                      TTF_GetError());
+            continue;
+        }
+        textures[i] = SDL_CreateTextureFromSurface(renderer, surface);
+        widths[i] = surface->w;
+        heights[i] = surface->h;
+        SDL_FreeSurface(surface);
+        total_h += heights[i];
+        if (widths[i] > max_w)
+            max_w = widths[i];
+    }
+    if (max_w == 0) {
+        for (int i = 0; i < ns; ++i) {
+            if (textures[i] != NULL)
+                SDL_DestroyTexture(textures[i]);
+        }
+        return;
+    }
 
-	/*
-	 * 逐字合成到一张 RGBA 目标纹理上，整列作为单一纹理缓存绘制，
-	 * 避免逐帧重复渲染字形；旋转字形通过 RenderCopyEx 合成。
-	 */
-	if (overlay->vertical_texture != NULL) {
-		SDL_DestroyTexture(overlay->vertical_texture);
-		overlay->vertical_texture = NULL;
-	}
-	SDL_Texture *target = SDL_CreateTexture(
-		renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
-		max_w, total_h);
-	if (target == NULL) {
-		LOG_ERROR("Weather overlay: create vertical target failed: %s\n",
-			  SDL_GetError());
-		for (int i = 0; i < n; ++i) {
-			if (textures[i] != NULL)
-				SDL_DestroyTexture(textures[i]);
-		}
-		return;
-	}
-	SDL_SetTextureBlendMode(target, SDL_BLENDMODE_BLEND);
-	SDL_Texture *prev_target = SDL_GetRenderTarget(renderer);
-	SDL_SetRenderTarget(renderer, target);
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-	SDL_RenderClear(renderer);
-	int cur_y = 0;
-	for (int i = 0; i < n; ++i) {
-		if (textures[i] == NULL) {
-			cur_y += heights[i] + glyph_gap;
-			continue;
-		}
-		SDL_Rect dst = { (max_w - widths[i]) / 2, cur_y, widths[i],
-				 heights[i] };
-		if (rotated[i])
-			SDL_RenderCopyEx(renderer, textures[i], NULL, &dst, 90,
-					 NULL, SDL_FLIP_NONE);
-		else
-			SDL_RenderCopy(renderer, textures[i], NULL, &dst);
-		SDL_DestroyTexture(textures[i]);
-		cur_y += heights[i] + glyph_gap;
-	}
-	SDL_SetRenderTarget(renderer, prev_target);
+    /*
+     * 逐段合成到一张 RGBA 目标纹理上，整列作为单一纹理缓存绘制，
+     * 避免逐帧重复渲染；所有段均为横向书写，无需旋转。
+     */
+    if (overlay->vertical_texture != NULL) {
+        SDL_DestroyTexture(overlay->vertical_texture);
+        overlay->vertical_texture = NULL;
+    }
+    SDL_Texture *target = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
+        max_w, total_h);
+    if (target == NULL) {
+        LOG_ERROR("Weather overlay: create vertical target failed: %s\n",
+                  SDL_GetError());
+        for (int i = 0; i < ns; ++i) {
+            if (textures[i] != NULL)
+                SDL_DestroyTexture(textures[i]);
+        }
+        return;
+    }
+    SDL_SetTextureBlendMode(target, SDL_BLENDMODE_BLEND);
+    SDL_Texture *prev_target = SDL_GetRenderTarget(renderer);
+    SDL_SetRenderTarget(renderer, target);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    int cur_y = 0;
+    for (int i = 0; i < ns; ++i) {
+        if (textures[i] == NULL) {
+            cur_y += heights[i] + glyph_gap;
+            continue;
+        }
+        SDL_Rect dst = { (max_w - widths[i]) / 2, cur_y, widths[i],
+                         heights[i] };
+        SDL_RenderCopy(renderer, textures[i], NULL, &dst);
+        SDL_DestroyTexture(textures[i]);
+        cur_y += heights[i] + glyph_gap;
+    }
+    SDL_SetRenderTarget(renderer, prev_target);
 
-	overlay->vertical_texture = target;
-	overlay->vertical_texture_w = max_w;
-	overlay->vertical_texture_h = total_h;
+    overlay->vertical_texture = target;
+    overlay->vertical_texture_w = max_w;
+    overlay->vertical_texture_h = total_h;
 
-	SDL_Rect dst = {
-		rect.x + (rect.w - max_w) / 2,
-		rect.y + (rect.h - total_h) / 2,
-		max_w,
-		total_h
-	};
-	SDL_RenderCopy(renderer, target, NULL, &dst);
+    SDL_Rect dst = {
+        rect.x + (rect.w - max_w) / 2,
+        rect.y + (rect.h - total_h) / 2,
+        max_w,
+        total_h
+    };
+    SDL_RenderCopy(renderer, target, NULL, &dst);
 }
+
 
 void flipclock_weather_overlay_draw(struct flipclock_weather_overlay *overlay,
 				    SDL_Rect rect)
