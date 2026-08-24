@@ -68,30 +68,29 @@ public class SettingsActivity extends Activity {
     private static final String DEFAULT_INFO_BAR_FONT = "LXGWXiHeiMN.ttf";
     private static final String DEFAULT_WEATHER_FONT = "LXGWNeoZhiSong.ttf";
 
-    private static final String[] FONT_FILES = {
-        "LXGWMarkerGothic-Regular.ttf",
-        "LXGWNeoXiHei.ttf",
-        "LXGWNeoZhiSong.ttf",
-        "LXGWWenKaiMonoGBLite-Regular.ttf",
-        "LXGWXiHeiMN.ttf",
-        "LXGWZhenKaiGB-Regular.ttf",
-        "SmileySans-Oblique.ttf",
-        "WenYuanSansSC-Heavy.ttf",
-        "XiaolaiMono-Regular.ttf",
-        "Yozai-Regular.ttf"
-    };
-    private static final String[] FONT_DISPLAY_NAMES = {
-        "霞鹜漫黑",
-        "霞鹜新禧黑",
-        "霞鹜新智宋",
-        "霞鹜文楷 GB Lite",
-        "霞鹜禧黑 MN",
-        "霞鹜真楷 GB",
-        "得意黑",
-        "文泉驿等宽微米黑",
-        "小赖字体",
-        "悠哉字体"
-    };
+    // 字体文件名 -> 显示名。下拉列表在运行时由 assets/fonts/ 实际文件动态生成，
+    // 新增字体只需把文件放进 assets/fonts/ 并在此补充显示名即可，无需硬编码数组，
+    // 因此删除字体后下拉框不会再指向缺失文件。
+    private static final java.util.Map<String, String> FONT_NAME_MAP =
+            new java.util.LinkedHashMap<>();
+    static {
+        FONT_NAME_MAP.put("HarmonyOS_Sans_SC_Regular.ttf", "鸿蒙黑体");
+        FONT_NAME_MAP.put("LXGWMarkerGothic-Regular.ttf", "霞鹜漫黑");
+        FONT_NAME_MAP.put("LXGWNeoZhiSong.ttf", "霞鹜新智宋");
+        FONT_NAME_MAP.put("LXGWWenKaiMonoGBLite-Regular.ttf", "霞鹜文楷");
+        FONT_NAME_MAP.put("LXGWXiHeiMN.ttf", "霞鹜禧黑");
+        FONT_NAME_MAP.put("LXGWZhenKaiGB-Regular.ttf", "霞鹜真楷");
+        FONT_NAME_MAP.put("SmileySans-Oblique.ttf", "得意黑");
+        FONT_NAME_MAP.put("SourceHanSerifCN-Regular.ttf", "思源宋体");
+        FONT_NAME_MAP.put("WenYuanSansSC-Heavy.ttf", "文源黑体");
+        FONT_NAME_MAP.put("XiaolaiMono-Regular.ttf", "小赖字体");
+        FONT_NAME_MAP.put("Yozai-Regular.ttf", "悠哉字体");
+        FONT_NAME_MAP.put("ZCOOLKuaiLe-Regular.ttf", "站酷快乐体");
+    }
+
+    // 运行时由 assets/fonts/ 生成（仅保留真实存在的文件，与 MAP 顺序一致）。
+    private String[] fontFiles = new String[0];
+    private String[] fontDisplayNames = new String[0];
 
     private Switch autoStartSwitch;
     private Switch showDateSwitch;
@@ -127,6 +126,8 @@ public class SettingsActivity extends Activity {
         setContentView(R.layout.activity_settings);
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+
+        loadFontLists();
 
         descriptionText = findViewById(R.id.auto_start_description);
         autoStartSwitch = findViewById(R.id.auto_start_switch);
@@ -584,20 +585,65 @@ public class SettingsActivity extends Activity {
     }
 
     private String getFontDisplayName(String fontFile) {
-        for (int i = 0; i < FONT_FILES.length; i++) {
-            if (FONT_FILES[i].equals(fontFile)) {
-                return FONT_DISPLAY_NAMES[i];
+        for (int i = 0; i < fontFiles.length; i++) {
+            if (fontFiles[i].equals(fontFile)) {
+                return fontDisplayNames[i];
             }
         }
         return fontFile;
+    }
+
+    /**
+     * 根据 assets/fonts/ 实际存在的文件生成字体下拉列表。仅保留 MAP 中已收录
+     * 且文件真实存在的字体；若 assets/fonts/ 中存在 MAP 未收录的字体，则按文件名
+     * 兜底显示，避免新增字体后下拉框缺失。
+     */
+    private void loadFontLists() {
+        String[] assets;
+        try {
+            assets = getAssets().list("fonts");
+        } catch (java.io.IOException e) {
+            assets = new String[0];
+        }
+        java.util.List<String> files = new java.util.ArrayList<>();
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (String name : FONT_NAME_MAP.keySet()) {
+            if (contains(assets, name)) {
+                files.add(name);
+                names.add(FONT_NAME_MAP.get(name));
+            }
+        }
+        for (String name : assets) {
+            if (!FONT_NAME_MAP.containsKey(name)) {
+                files.add(name);
+                names.add(prettyFontName(name));
+            }
+        }
+        fontFiles = files.toArray(new String[0]);
+        fontDisplayNames = names.toArray(new String[0]);
+    }
+
+    private static boolean contains(String[] arr, String v) {
+        for (String s : arr) {
+            if (s.equals(v)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String prettyFontName(String fileName) {
+        String n = fileName.replaceAll("(?i)\\.(ttf|otf|ttc)$", "");
+        n = n.replace('_', ' ').replace('-', ' ');
+        return n;
     }
 
     private void showFontPickerDialog(final String prefKey, final int labelResId,
                                      final Button button) {
         String currentFont = prefs.getString(prefKey, "");
         int checkedItem = -1;
-        for (int i = 0; i < FONT_FILES.length; i++) {
-            if (FONT_FILES[i].equals(currentFont)) {
+        for (int i = 0; i < fontFiles.length; i++) {
+            if (fontFiles[i].equals(currentFont)) {
                 checkedItem = i;
                 break;
             }
@@ -605,9 +651,9 @@ public class SettingsActivity extends Activity {
 
         new AlertDialog.Builder(this)
                 .setTitle(getString(labelResId))
-                .setSingleChoiceItems(FONT_DISPLAY_NAMES, checkedItem,
+                .setSingleChoiceItems(fontDisplayNames, checkedItem,
                         (dialog, which) -> {
-                            String selectedFont = FONT_FILES[which];
+                            String selectedFont = fontFiles[which];
                             prefs.edit().putString(prefKey, selectedFont)
                                     .apply();
                             updateFontButton(button, selectedFont,

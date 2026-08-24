@@ -12,6 +12,7 @@ import android.view.WindowManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -135,20 +136,19 @@ public class MainActivity extends SDLActivity {
     /**
      * Copy all bundled font files from {@code assets/fonts/} into the app
      * internal storage so the native layer can load them by filename.
+     * The list is derived from the assets directory at runtime, so newly
+     * added fonts are copied automatically without a hardcoded array.
      */
     private void copyFontAssets() {
-        String[] fontFiles = {
-            "LXGWMarkerGothic-Regular.ttf",
-            "LXGWNeoXiHei.ttf",
-            "LXGWNeoZhiSong.ttf",
-            "LXGWWenKaiMonoGBLite-Regular.ttf",
-            "LXGWXiHeiMN.ttf",
-            "LXGWZhenKaiGB-Regular.ttf",
-            "SmileySans-Oblique.ttf",
-            "WenYuanSansSC-Heavy.ttf",
-            "XiaolaiMono-Regular.ttf",
-            "Yozai-Regular.ttf"
-        };
+        String[] fontFiles;
+        try {
+            fontFiles = getAssets().list("fonts");
+        } catch (IOException e) {
+            fontFiles = new String[0];
+        }
+        if (fontFiles == null) {
+            fontFiles = new String[0];
+        }
         for (String fontFile : fontFiles) {
             copyAssetToFiles("fonts/" + fontFile);
         }
