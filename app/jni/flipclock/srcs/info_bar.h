@@ -32,6 +32,14 @@ struct flipclock_info_bar {
 	bool hide_date;
 	/* 并入信息栏的天气文本（温度 + 状况，由 clock.c 每帧填充）。 */
 	char weather_text[WEATHER_TEXT_LENGTH];
+	/* 节气/三伏/九九显示文本（refresh 填充，为空时信息栏保持单行/单列）。 */
+	char solar_term_text[INFO_TEXT_LENGTH];
+	/* 双行（横屏）/双列（竖屏）模式激活：solar_term_text 非空且
+	   two_line_info 开启时为真，由 draw 时判定。 */
+	bool two_line;
+	/* 双行/双列各区的独立字体对象与字号（字号变化才重开，见设计 §8.3）。 */
+	TTF_Font *font_line[2];
+	int font_px_line[2];
 	int last_yday;
 	int last_year;
 };

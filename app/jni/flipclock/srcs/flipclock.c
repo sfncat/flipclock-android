@@ -79,8 +79,10 @@ struct flipclock *flipclock_create(void)
 	app->show_date = true;
 	app->show_weekday = true;
 	app->show_lunar = true;
-	app->show_lunar_year = false;
+	app->show_lunar_year = true;
 	app->info_vertical = true;
+	app->two_line_info = true;
+	app->almanac_today[0] = '\0';
 	app->burn_in_protection = true;
 	app->burn_in_protection_offset = 0.05;
 	app->weather_merge_landscape = true;
@@ -391,6 +393,14 @@ static void _flipclock_apply_key_value(struct flipclock *app, const char key[],
 		app->show_lunar_year = (!strcmp(value, "true"));
 	} else if (!strcmp(key, "info_vertical")) {
 		app->info_vertical = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "two_line_info")) {
+		app->two_line_info = (!strcmp(value, "true"));
+	} else if (!strcmp(key, "almanac_today")) {
+		// 伪造"今天"调试键（yyyy-MM-dd），仅影响节气/三伏/九九计算。
+		// 非法格式不在此校验，由 info_bar 调用处 year<=0 时跳过计算。
+		strncpy(app->almanac_today, value,
+			sizeof(app->almanac_today) - 1);
+		app->almanac_today[sizeof(app->almanac_today) - 1] = '\0';
 	} else if (!strcmp(key, "burn_in_protection")) {
 		app->burn_in_protection = (!strcmp(value, "true"));
 	} else if (!strcmp(key, "burn_in_protection_offset")) {

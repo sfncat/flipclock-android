@@ -45,6 +45,7 @@ public class SettingsActivity extends Activity {
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_SHOW_LUNAR_YEAR = "show_lunar_year";
     private static final String KEY_INFO_VERTICAL = "info_vertical";
+    private static final String KEY_TWO_LINE_INFO = "two_line_info";
     private static final String KEY_BURN_IN_PROTECTION = "burn_in_protection";
     private static final String KEY_BURN_IN_PROTECTION_OFFSET =
             "burn_in_protection_offset";
@@ -65,27 +66,26 @@ public class SettingsActivity extends Activity {
     private static final String KEY_DATE_ON_TOP_PORTRAIT = "date_on_top_portrait";
     private static final String KEY_WEATHER_LARGE_THREE_BARS = "weather_large_three_bars";
 
-    private static final String DEFAULT_INFO_BAR_FONT = "LXGWXiHeiMN.ttf";
-    private static final String DEFAULT_WEATHER_FONT = "LXGWNeoZhiSong.ttf";
+    private static final String DEFAULT_INFO_BAR_FONT = "GlowSansSC-Compressed-Bold.otf";
+    private static final String DEFAULT_WEATHER_FONT = "LXGWMarkerGothic-Regular.ttf";
 
     // 字体文件名 -> 显示名。下拉列表在运行时由 assets/fonts/ 实际文件动态生成，
     // 新增字体只需把文件放进 assets/fonts/ 并在此补充显示名即可，无需硬编码数组，
     // 因此删除字体后下拉框不会再指向缺失文件。
+    // 字体源文件与子集化脚本见项目根目录 fonts/（subset_fonts.py + sub.txt）。
     private static final java.util.Map<String, String> FONT_NAME_MAP =
             new java.util.LinkedHashMap<>();
     static {
+        FONT_NAME_MAP.put("GenWanMin2-SB.ttf", "源雲明體");
+        FONT_NAME_MAP.put("GlowSansSC-Compressed-Bold.otf", "未来荧黑");
         FONT_NAME_MAP.put("HarmonyOS_Sans_SC_Regular.ttf", "鸿蒙黑体");
         FONT_NAME_MAP.put("LXGWMarkerGothic-Regular.ttf", "霞鹜漫黑");
-        FONT_NAME_MAP.put("LXGWNeoZhiSong.ttf", "霞鹜新智宋");
-        FONT_NAME_MAP.put("LXGWWenKaiMonoGBLite-Regular.ttf", "霞鹜文楷");
-        FONT_NAME_MAP.put("LXGWXiHeiMN.ttf", "霞鹜禧黑");
-        FONT_NAME_MAP.put("LXGWZhenKaiGB-Regular.ttf", "霞鹜真楷");
         FONT_NAME_MAP.put("SmileySans-Oblique.ttf", "得意黑");
-        FONT_NAME_MAP.put("SourceHanSerifCN-Regular.ttf", "思源宋体");
-        FONT_NAME_MAP.put("WenYuanSansSC-Heavy.ttf", "文源黑体");
-        FONT_NAME_MAP.put("XiaolaiMono-Regular.ttf", "小赖字体");
-        FONT_NAME_MAP.put("Yozai-Regular.ttf", "悠哉字体");
-        FONT_NAME_MAP.put("ZCOOLKuaiLe-Regular.ttf", "站酷快乐体");
+        FONT_NAME_MAP.put("Swei_Half_Moon.ttf", "獅尾半月");
+        FONT_NAME_MAP.put("Xiaolai_Mono.ttf", "小赖字体");
+        FONT_NAME_MAP.put("Yozai.ttf", "悠哉字体");
+        FONT_NAME_MAP.put("ZCOOL_KuaiLe.ttf", "站酷快乐体");
+        FONT_NAME_MAP.put("ZLabs_Pixel_12px.ttf", "Z工坊像素黑体");
     }
 
     // 运行时由 assets/fonts/ 生成（仅保留真实存在的文件，与 MAP 顺序一致）。
@@ -98,10 +98,9 @@ public class SettingsActivity extends Activity {
     private Switch showLunarSwitch;
     private Switch showLunarYearSwitch;
     private Switch infoVerticalSwitch;
+    private Switch twoLineInfoSwitch;
     private Switch burnInProtectionSwitch;
-    private Switch weatherMergeLandscapeSwitch;
     private Switch dateOnTopPortraitSwitch;
-    private Switch weatherLargeThreeBarsSwitch;
     private LinearLayout burnInProtectionOffsetContainer;
     private TextView burnInProtectionOffsetSummary;
     private SeekBar burnInProtectionOffsetSeekBar;
@@ -138,10 +137,9 @@ public class SettingsActivity extends Activity {
         showLunarSwitch = findViewById(R.id.show_lunar_switch);
         showLunarYearSwitch = findViewById(R.id.show_lunar_year_switch);
         infoVerticalSwitch = findViewById(R.id.info_vertical_switch);
+        twoLineInfoSwitch = findViewById(R.id.two_line_info_switch);
         burnInProtectionSwitch = findViewById(R.id.burn_in_protection_switch);
-        weatherMergeLandscapeSwitch = findViewById(R.id.weather_merge_landscape_switch);
         dateOnTopPortraitSwitch = findViewById(R.id.date_on_top_portrait_switch);
-        weatherLargeThreeBarsSwitch = findViewById(R.id.weather_large_three_bars_switch);
         burnInProtectionOffsetContainer =
                 findViewById(R.id.burn_in_protection_offset_container);
         burnInProtectionOffsetSummary =
@@ -182,17 +180,15 @@ public class SettingsActivity extends Activity {
         showWeekdaySwitch.setChecked(prefs.getBoolean(KEY_SHOW_WEEKDAY, true));
         showLunarSwitch.setChecked(prefs.getBoolean(KEY_SHOW_LUNAR, true));
         showLunarYearSwitch.setChecked(
-                prefs.getBoolean(KEY_SHOW_LUNAR_YEAR, false));
+                prefs.getBoolean(KEY_SHOW_LUNAR_YEAR, true));
         infoVerticalSwitch.setChecked(
                 prefs.getBoolean(KEY_INFO_VERTICAL, true));
+        twoLineInfoSwitch.setChecked(
+                prefs.getBoolean(KEY_TWO_LINE_INFO, true));
         burnInProtectionSwitch.setChecked(
                 prefs.getBoolean(KEY_BURN_IN_PROTECTION, true));
-        weatherMergeLandscapeSwitch.setChecked(
-                prefs.getBoolean(KEY_WEATHER_MERGE_LANDSCAPE, true));
         dateOnTopPortraitSwitch.setChecked(
                 prefs.getBoolean(KEY_DATE_ON_TOP_PORTRAIT, true));
-        weatherLargeThreeBarsSwitch.setChecked(
-                prefs.getBoolean(KEY_WEATHER_LARGE_THREE_BARS, false));
         setupBurnInProtectionOffset();
         showDateSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_DATE, isChecked).apply());
@@ -204,18 +200,16 @@ public class SettingsActivity extends Activity {
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_SHOW_LUNAR_YEAR, isChecked).apply());
         infoVerticalSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_INFO_VERTICAL, isChecked).apply());
+        twoLineInfoSwitch.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_TWO_LINE_INFO, isChecked).apply());
         burnInProtectionSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> {
                     prefs.edit().putBoolean(KEY_BURN_IN_PROTECTION, isChecked)
                             .apply();
                     updateBurnInProtectionOffsetVisibility();
                 });
-        weatherMergeLandscapeSwitch.setOnCheckedChangeListener(
-                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_WEATHER_MERGE_LANDSCAPE, isChecked).apply());
         dateOnTopPortraitSwitch.setOnCheckedChangeListener(
                 (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_DATE_ON_TOP_PORTRAIT, isChecked).apply());
-        weatherLargeThreeBarsSwitch.setOnCheckedChangeListener(
-                (buttonView, isChecked) -> prefs.edit().putBoolean(KEY_WEATHER_LARGE_THREE_BARS, isChecked).apply());
 
         setupWeatherSettings();
         setupFontSettings();

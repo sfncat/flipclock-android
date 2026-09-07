@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.provider.Settings;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Log;
@@ -74,9 +75,18 @@ public class MainActivity extends SDLActivity {
             sb.append("show_lunar=")
                     .append(prefs.getBoolean("show_lunar", true)).append('\n');
             sb.append("show_lunar_year=")
-                    .append(prefs.getBoolean("show_lunar_year", false)).append('\n');
+                    .append(prefs.getBoolean("show_lunar_year", true)).append('\n');
             sb.append("info_vertical=")
                     .append(prefs.getBoolean("info_vertical", true)).append('\n');
+            sb.append("two_line_info=")
+                    .append(prefs.getBoolean("two_line_info", true)).append('\n');
+            // 调试键：almanac_today 由 adb 写系统全局设置（yyyy-MM-dd），
+            // 仅影响节气/三伏/九九计算；不设置则不写入（C 层用真实日期）。
+            String almanacToday = Settings.Global.getString(
+                    context.getContentResolver(), "flipclock.almanac_today");
+            if (almanacToday != null && !almanacToday.isEmpty()) {
+                sb.append("almanac_today=").append(almanacToday).append('\n');
+            }
             sb.append("burn_in_protection=")
                     .append(prefs.getBoolean("burn_in_protection", true))
                     .append('\n');
@@ -92,23 +102,19 @@ public class MainActivity extends SDLActivity {
             sb.append("weather_update_interval_hours=")
                     .append(prefs.getInt("weather_update_interval_hours", 1))
                     .append('\n');
-            sb.append("weather_merge_landscape=")
-                    .append(prefs.getBoolean("weather_merge_landscape", true))
-                    .append('\n');
+            sb.append("weather_merge_landscape=true\n");
             sb.append("date_on_top_portrait=")
                     .append(prefs.getBoolean("date_on_top_portrait", true))
                     .append('\n');
-            sb.append("weather_large_three_bars=")
-                    .append(prefs.getBoolean("weather_large_three_bars", false))
-                    .append('\n');
+            sb.append("weather_large_three_bars=false\n");
             String infoBarFont = prefs.getString("info_bar_font",
-                    "LXGWXiHeiMN.ttf");
+                    "GlowSansSC-Compressed-Bold.otf");
             if (!infoBarFont.isEmpty()) {
                 sb.append("info_bar_font=fonts/")
                         .append(infoBarFont).append('\n');
             }
             String weatherFont = prefs.getString("weather_font",
-                    "LXGWNeoZhiSong.ttf");
+                    "LXGWMarkerGothic-Regular.ttf");
             if (!weatherFont.isEmpty()) {
                 sb.append("weather_font=fonts/")
                         .append(weatherFont).append('\n');

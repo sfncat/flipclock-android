@@ -25,6 +25,7 @@
     <string name="show_lunar_label">显示农历</string>
     <string name="show_lunar_year_label">显示农历年份</string>
     <string name="info_vertical_label">竖排文字</string>
+    <string name="two_line_info_label">节气</string>
     <string name="burn_in_protection_label">防烧屏保护</string>
     <string name="burn_in_protection_offset_label">防烧屏位移幅度</string>
     <string name="burn_in_protection_offset_summary">当前偏移量：%1$s%%（相对屏幕短边）</string>
@@ -46,7 +47,7 @@
     <string name="weather_error_network">网络错误，无法获取天气数据</string>
     <string name="weather_ok">地点验证成功：%1$s</string>
     <string name="info_bar_font_label">信息栏字体</string>
-    <string name="weather_font_label">天气字体</string>
+    <string name="weather_font_label">第二排字体</string>
     <string name="font_default">默认</string>
     <string name="restart_app_label">重启应用以生效</string>
 </resources>

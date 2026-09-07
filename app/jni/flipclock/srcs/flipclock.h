@@ -90,6 +90,11 @@ struct flipclock {
 	bool show_lunar;
 	bool show_lunar_year; /* 农历是否显示干支年，默认关闭。 */
 	bool info_vertical;   /* 竖屏时信息栏采用传统竖排文字，默认开启。 */
+	bool two_line_info;   /* 双行/双列信息栏开关（默认开启）：当天有节气/三伏/九九
+				     内容时信息栏横屏变双行、竖屏变双列；无内容时始终
+				     单行/单列，见 docs/info-bar-solar-term-design.md §3.3。 */
+	char almanac_today[32]; /* 伪造"今天"调试键（yyyy-MM-dd，默认空 = 用真实日期），
+				   仅影响节气/三伏/九九计算，不影响时间/日期显示。 */
 	bool burn_in_protection; /* 防烧屏保护：开启后主界面缓慢微移，默认关闭。 */
 	double burn_in_protection_offset; /* 防烧屏位移幅度（相对屏幕短边的比例）。 */
 	/* 天气布局增强（均为可选开关，默认关闭）：

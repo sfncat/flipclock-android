@@ -18,7 +18,7 @@
 /* 竖屏时左侧信息栏占窗口宽度的比例（需要容纳多行文字）。 */
 #define INFO_RATIO_PORTRAIT 0.22
 /* 方案2 竖屏置顶日期带占窗口高度的比例。 */
-#define DATE_TOP_RATIO 0.10
+#define DATE_TOP_RATIO 0.12
 /* 防烧屏：完整来回周期 60 秒，振幅由 burn_in_protection_offset 控制。 */
 #define BURN_IN_PERIOD_MS 60000
 #ifndef M_PI
@@ -126,19 +126,19 @@ static void _flipclock_clock_open_date_font(struct flipclock_clock *clock)
 	/*
 	 * 顶部日期为横排长串文本，方案2 防烧屏为左右移动 ±amp：
 	 * 必须预留「2·amp + 双侧安全边距」，否则移到边缘仍可能被裁切。
-	 * 字号上限同时受带高（0.62）与可用宽度约束，确保全相位都完整、
-	 * 且整体偏小（用户要求再小一点）。
+	 * 字号上限同时受带高（0.90）与可用宽度约束，确保全相位都完整；
+	 * 字体尽量大（核心产品约束），高度方向用满 90%，宽度方向留 3% 余量。
 	 */
-	int safety = clock->date_rect.w / 30;
-	if (safety < 6)
-		safety = 6;
+	int safety = clock->date_rect.w / 80;
+	if (safety < 4)
+		safety = 4;
 	int avail_w = clock->date_rect.w - 2 * amp - 2 * safety;
 	if (avail_w < 8)
 		avail_w = 8;
-	int target_w = (int)(avail_w * 0.92);
+	int target_w = (int)(avail_w * 0.97);
 	if (target_w < 8)
 		target_w = 8;
-	int max_h = (int)(clock->date_rect.h * 0.62);
+	int max_h = (int)(clock->date_rect.h * 0.90);
 	if (max_h < 8)
 		max_h = 8;
 
@@ -228,9 +228,15 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 
 	if (clock->w >= clock->h) {
 		int space_size = clock->w / (cards_length * 8 + spaces_length);
-		int info_h = has_info_bar
-				     ? (int)(clock->h * INFO_RATIO) + 2 * space_size
-				     : 0;
+		/* 双行信息栏：two_line_info 开启即按双行预留高度（2.0×），
+		   不依赖运行时 solar_term_text——冷启动时内容尚未填充，
+		   若按内容判断会导致首帧 rect 仍是单行尺寸，双行绘制字极小。
+		   无内容时 draw 回退单行，字号基准用半高（见 info_bar.c）。 */
+		bool info_two_line = has_info_bar && app->two_line_info;
+		int info_bar_h = (int)(clock->h * INFO_RATIO);
+		if (info_two_line)
+			info_bar_h = (int)(info_bar_h * 2.0);
+		int info_h = has_info_bar ? info_bar_h + 2 * space_size : 0;
 
 		/*
 		 * 方案3：保留三栏、天气字号不缩小，时间卡片保持原始尺寸，
@@ -276,7 +282,7 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			info_rect.x = 0;
 			info_rect.y = space_size;
 			info_rect.w = clock->w;
-			info_rect.h = (int)(clock->h * INFO_RATIO);
+			info_rect.h = info_bar_h;
 			flipclock_info_bar_set_rect(clock->info_bar, info_rect,
 					     true);
 			clock->info_bar->show_weather_segment =
@@ -297,8 +303,7 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			clock->weather_rect.h = weather_band_h;
 		} else {
 			clock->weather_rect.x = 0;
-			clock->weather_rect.y =
-				space_size + (int)(clock->h * INFO_RATIO);
+			clock->weather_rect.y = space_size + info_bar_h;
 			clock->weather_rect.w = clock->w;
 			clock->weather_rect.h =
 				hour_rect.y - clock->weather_rect.y;
@@ -327,9 +332,7 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			burn_in_reserve = (int)(min_side * ratio);
 		}
 		clock->weather_rect.x = 0;
-		clock->weather_rect.y = space_size +
-					 (int)(clock->h * INFO_RATIO) +
-					 burn_in_reserve;
+		clock->weather_rect.y = space_size + info_bar_h + burn_in_reserve;
 		clock->weather_rect.w = clock->w;
 		clock->weather_rect.h = hour_rect.y - clock->weather_rect.y -
 					 burn_in_reserve;
@@ -340,8 +343,16 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 				     ? (int)(clock->h * DATE_TOP_RATIO) +
 				       2 * space_size
 			     : 0;
+		/* 双列信息栏（当天有节气/三伏/九九内容时）：总宽 1.8× 单列宽
+		   （每列 0.9× 单列宽），卡片区相应收窄（设计 §5.2）。 */
+		/* 双列信息栏：two_line_info 开启即按双列预留宽度（1.8×），
+		   理由同横屏——避免冷启动首帧 rect 尺寸错误。 */
+		bool info_two_line = has_info_bar && app->two_line_info;
+		double info_ratio = INFO_RATIO_PORTRAIT;
+		if (info_two_line)
+			info_ratio *= 1.8;
 		int info_w = has_info_bar
-				     ? (int)(clock->w * INFO_RATIO_PORTRAIT) +
+				     ? (int)(clock->w * info_ratio) +
 				       2 * space_size
 			     : 0;
 
@@ -374,6 +385,23 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			(cards_length * 8 + spaces_length);
 		int card_size = min_height < min_width ? min_height : min_width;
 		card_size *= app->card_scale;
+		/* §5.2：双列卡片代价大（约 -25%），若最短边低于屏短边 0.30 的
+		   视觉下限，逐步收窄列宽至每列 0.75× 单列宽后再核算一次。 */
+		if (info_two_line) {
+			int min_side = clock->w < clock->h ? clock->w : clock->h;
+			if (card_size < (int)(min_side * 0.30)) {
+				info_ratio = INFO_RATIO_PORTRAIT * 1.5;
+				info_w = has_info_bar
+					     ? (int)(clock->w * info_ratio) +
+					       2 * space_size
+				     : 0;
+				reserved_left = info_w;
+				min_width = (clock->w - reserved_left) * 0.8;
+				card_size = min_height < min_width ? min_height
+								   : min_width;
+				card_size *= app->card_scale;
+			}
+		}
 
 		hour_rect.x =
 			reserved_left + ((clock->w - reserved_left) - card_size) / 2;
@@ -404,7 +432,7 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			SDL_Rect info_rect;
 			info_rect.x = space_size;
 			info_rect.y = date_top_h + space_size;
-			info_rect.w = (int)(clock->w * INFO_RATIO_PORTRAIT);
+			info_rect.w = (int)(clock->w * info_ratio);
 			info_rect.h = clock->h - date_top_h - 2 * space_size;
 			flipclock_info_bar_set_rect(clock->info_bar, info_rect,
 					     false);
@@ -430,7 +458,7 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 		}
 
 		clock->weather_rect.x = space_size +
-					(int)(clock->w * INFO_RATIO_PORTRAIT);
+					(int)(clock->w * info_ratio);
 		clock->weather_rect.y = 0;
 		clock->weather_rect.w = hour_rect.x - clock->weather_rect.x;
 		clock->weather_rect.h = clock->h;
@@ -466,14 +494,14 @@ static void _flipclock_clock_update_layout(struct flipclock_clock *clock)
 			 * 在方案3 下放大填满该间隙。
 			 */
 			clock->weather_rect.x =
-				space_size + (int)(clock->w * INFO_RATIO_PORTRAIT);
+				space_size + (int)(clock->w * info_ratio);
 			clock->weather_rect.y = 0;
 			clock->weather_rect.w =
 				hour_rect.x - clock->weather_rect.x;
 			clock->weather_rect.h = clock->h;
 		} else {
 			clock->weather_rect.x =
-				space_size + (int)(clock->w * INFO_RATIO_PORTRAIT);
+				space_size + (int)(clock->w * info_ratio);
 			clock->weather_rect.y = 0;
 			clock->weather_rect.w =
 				hour_rect.x - clock->weather_rect.x;

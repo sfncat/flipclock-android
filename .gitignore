@@ -87,3 +87,8 @@ lint/tmp/
 
 # Android Profiling
 *.hprof
+/tmp/
+/test/
+/fonts/subset_out/
+/app/src/main/assets/fonts - 副本/
+*.keystore

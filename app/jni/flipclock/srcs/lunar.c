@@ -89,6 +89,9 @@ static const char *TIAN_GAN[10] = { "甲", "乙", "丙", "丁", "戊",
 				    "己", "庚", "辛", "壬", "癸" };
 static const char *DI_ZHI[12] = { "子", "丑", "寅", "卯", "辰", "巳",
 				  "午", "未", "申", "酉", "戌", "亥" };
+/* 与 DI_ZHI 同序：子鼠丑牛寅虎卯兔辰龙巳蛇午马未羊申猴酉鸡戌狗亥猪。 */
+static const char *ZODIAC[12] = { "鼠", "牛", "虎", "兔", "龙", "蛇",
+				 "马", "羊", "猴", "鸡", "狗", "猪" };
 static const char *LUNAR_MONTHS[12] = { "正", "二", "三", "四", "五", "六",
 					"七", "八", "九", "十", "冬", "腊" };
 static const char *LUNAR_DAYS[30] = {
@@ -212,14 +215,15 @@ void lunar_from_gregorian(int year, int month, int day, bool show_year,
 		gz_index += 60;
 	const char *gan = TIAN_GAN[gz_index % 10];
 	const char *zhi = DI_ZHI[gz_index % 12];
+	const char *zodiac = ZODIAC[gz_index % 12];
 
 	const char *month_name =
 		LUNAR_MONTHS[(lunar_month - 1 + 12) % 12];
 	const char *day_name = LUNAR_DAYS[(lunar_day - 1) % 30];
 
 	if (show_year) {
-		snprintf(buf, buf_size, "%s%s年 %s%s月%s", gan, zhi,
-			 is_leap ? "闰" : "", month_name, day_name);
+		snprintf(buf, buf_size, "%s%s%s年 %s%s月%s", gan, zhi,
+			 zodiac, is_leap ? "闰" : "", month_name, day_name);
 	} else {
 		snprintf(buf, buf_size, "%s%s月%s", is_leap ? "闰" : "",
 			 month_name, day_name);
