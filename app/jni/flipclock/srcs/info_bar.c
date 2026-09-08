@@ -348,11 +348,11 @@ void flipclock_info_bar_refresh(struct flipclock_info_bar *bar,
 	RETURN_IF_FAIL(bar != NULL);
 	RETURN_IF_FAIL(now != NULL);
 
-	if (!force && now->tm_yday == bar->last_yday &&
-	    (now->tm_year + 1900) == bar->last_year)
-		return;
-
 	const struct flipclock *app = bar->app;
+	bool same_day = !force && now->tm_yday == bar->last_yday &&
+			 (now->tm_year + 1900) == bar->last_year;
+
+	if (!same_day) {
 
 	if (app->show_date) {
 		snprintf(bar->date_text, sizeof(bar->date_text),
@@ -393,10 +393,12 @@ void flipclock_info_bar_refresh(struct flipclock_info_bar *bar,
 				    now->tm_mday, bar->solar_term_text,
 				    sizeof(bar->solar_term_text));
 
+	} /* !same_day */
+
 	/*
-	 * 竖排模式下字号随文本内容变化（组数/字符数），首次布局时文本
-	 * 尚未生成（`_typography_font_px` 返回 0 走了旧算法），这里在文本
-	 * 就绪后按需纠正字号；跨日/农历切换导致内容变化时同样生效。
+	 * 竖排字号纠正：始终执行（不只是跨日）。转屏后 set_rect 时
+	 * hide_date/show_weather_segment 尚未设置，_typography_font_px
+	 * 算出的 px 偏小；此处状态已就绪，按需纠正字号。
 	 */
 	if (!bar->horizontal && app->info_vertical) {
 		int px = _typography_font_px(bar);
@@ -408,8 +410,10 @@ void flipclock_info_bar_refresh(struct flipclock_info_bar *bar,
 		}
 	}
 
-	bar->last_yday = now->tm_yday;
-	bar->last_year = now->tm_year + 1900;
+	if (!same_day) {
+		bar->last_yday = now->tm_yday;
+		bar->last_year = now->tm_year + 1900;
+	}
 }
 
 /* 使用整行 UTF-8 渲染，返回创建的 texture 与其尺寸。可能返回 NULL。 */

@@ -33,12 +33,30 @@ android {
             // }
         }
     }
+    // 签名配置：从 keystore/keystore.properties 读取（该文件不入库，见 .gitignore）。
+    // 首次使用请复制 keystore/keystore.properties.template 为 keystore.properties 并填写密码。
+    signingConfigs {
+        release {
+            def propsFile = rootProject.file('keystore/keystore.properties')
+            if (propsFile.exists()) {
+                def props = new Properties()
+                props.load(new FileInputStream(propsFile))
+                storeFile file(props['storeFile'] ?: '../keystore/flipclockV2new.keystore')
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            } else {
+                println "WARNING: keystore/keystore.properties not found, release APK will be unsigned."
+            }
+        }
+    }
     buildTypes {
         release {
             // It seems enable minify and shrink resources will make SDL2 crash.
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     applicationVariants.all { variant ->

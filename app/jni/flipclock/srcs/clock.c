@@ -153,6 +153,8 @@ static void _flipclock_clock_open_date_font(struct flipclock_clock *clock)
 		TTF_Font *probe = TTF_OpenFont(font_path, px);
 		if (probe == NULL)
 			break;
+		/* 测量时须与实际渲染一致设置 bold，否则加粗后宽度偏大导致出界。 */
+		TTF_SetFontStyle(probe, TTF_STYLE_BOLD);
 		int w = 0, h = 0;
 		TTF_SizeUTF8(probe, date_buf, &w, &h);
 		TTF_CloseFont(probe);

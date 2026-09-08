@@ -123,6 +123,17 @@ public class SettingsActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
+        // 标题追加版本号
+        try {
+            String versionName = getPackageManager()
+                    .getPackageInfo(getPackageName(), 0).versionName;
+            TextView titleView = findViewById(R.id.settings_title);
+            if (titleView != null) {
+                titleView.setText(getString(R.string.settings_title)
+                        + "  v" + versionName);
+            }
+        } catch (Exception ignored) {
+        }
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
