@@ -1168,8 +1168,9 @@ void flipclock_info_bar_draw(struct flipclock_info_bar *bar, SDL_Point offset)
 		return;
 
 	/* 双行/双列仅在当天有节气/三伏/九九内容时激活（设计 §3.3）。 */
-	bar->two_line = bar->solar_term_text[0] != '\0' &&
-			bar->app->two_line_info;
+	/* two_line_info 开启即按双行/双列绘制（无节气时天气下移第2行/右列），
+	   与 layout 预留一致，避免冷启动/无节气日单行挤在一起。 */
+	bar->two_line = bar->app->two_line_info;
 
 	if (bar->horizontal) {
 		if (bar->two_line)
